@@ -1,0 +1,295 @@
+type backupFile
+type calendarDay = {date: string, label: string, accessible: string, disabled: bool}
+type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
+@send external readFile: backupFile => promise<string> = "text"
+@module("./BackupDownload.js") external download: string => unit = "download"
+@module("./InteractionDate.js") external today: unit => string = "today"
+@module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
+@module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
+@module("./InteractionDate.js") external getCalendarMonth: string => calendarView = "calendarMonth"
+@module("./Theme.js") external loadTheme: unit => string = "load"
+@module("./Theme.js") external applyTheme: string => unit = "apply"
+@scope("window") @val external scrollTo: (int, int) => unit = "scrollTo"
+
+let moveClass = move => switch move { | State.Cooperate => "cooperate" | State.Defect => "defect" }
+let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
+let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
+
+@react.component
+let make = () => {
+  let (people, setPeople) = React.useState(Storage.load)
+  let (selectedId, setSelectedId) = React.useState(_ => "")
+  let (newName, setNewName) = React.useState(_ => "")
+  let (note, setNote) = React.useState(_ => "")
+  let (interactionDate, setInteractionDate) = React.useState(today)
+  let (calendarOpen, setCalendarOpen) = React.useState(_ => false)
+  let (monthKey, setMonthKey) = React.useState(_ => today()->String.slice(~start=0, ~end=7))
+  let (dateError, setDateError) = React.useState(_ => "")
+  let (deleteTargetId, setDeleteTargetId) = React.useState(_ => "")
+  let (backupOpen, setBackupOpen) = React.useState(_ => false)
+  let (restorePreview, setRestorePreview) = React.useState(_ => None)
+  let (restoreError, setRestoreError) = React.useState(_ => "")
+  let (fileInputKey, setFileInputKey) = React.useState(_ => 0)
+  let (showInfo, setShowInfo) = React.useState(_ => false)
+  let (theme, setTheme) = React.useState(loadTheme)
+
+  let commit = next => {
+    Storage.save(next)
+    setPeople(_ => next)
+  }
+
+  let selected = switch Belt.Array.getBy(people, person => person.id == selectedId) {
+  | Some(person) => Some(person)
+  | None => Belt.Array.get(people, 0)
+  }
+  let calendar = getCalendarMonth(monthKey)
+
+  let openCalendar = () => {
+    let date = switch interactionDate->normalizeDate->Nullable.toOption {
+    | Some(date) => date
+    | None => today()
+    }
+    setMonthKey(_ => date->String.slice(~start=0, ~end=7))
+    setCalendarOpen(_ => true)
+  }
+  let chooseTheme = choice => {
+    applyTheme(choice)
+    setTheme(_ => choice)
+  }
+
+  let addPerson = event => {
+    ReactEvent.Form.preventDefault(event)
+    let name = newName->String.trim
+    if name != "" {
+      let person: State.person = {id: Storage.randomUUID(), name, entries: []}
+      commit(Array.concat(people, [person]))
+      setSelectedId(_ => person.id)
+      setShowInfo(_ => false)
+      setNewName(_ => "")
+    }
+  }
+
+  let log = (person: State.person, move) => {
+    switch interactionDate->normalizeDate->Nullable.toOption {
+    | None => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
+    | Some(date) => {
+        let entry: State.entry = {move, note: note->String.trim, date}
+        commit(people->Array.map(item => item.id == person.id
+          ? {...item, entries: Array.concat(item.entries, [entry])}
+          : item))
+        setNote(_ => "")
+        setInteractionDate(_ => today())
+        setCalendarOpen(_ => false)
+        setDateError(_ => "")
+      }
+    }
+  }
+
+  let undo = (person: State.person) => {
+    let length = Array.length(person.entries)
+    if length > 0 {
+      commit(people->Array.map(item => item.id == person.id
+        ? {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)}
+        : item))
+    }
+  }
+
+  let remove = (person: State.person) => {
+    commit(people->Array.filter(item => item.id != person.id))
+    setSelectedId(_ => "")
+    setDeleteTargetId(_ => "")
+  }
+
+  let chooseBackup = event => {
+    let files: array<backupFile> = JsxEvent.Form.target(event)["files"]
+    setFileInputKey(previous => previous + 1)
+    switch Belt.Array.get(files, 0) {
+    | None => ()
+    | Some(file) => {
+        setRestoreError(_ => "")
+        setRestorePreview(_ => None)
+        file->readFile
+        ->Promise.then(raw => {
+          switch Storage.parseBackup(raw) {
+          | Ok(restored) => setRestorePreview(_ => Some(restored))
+          | Error(message) => setRestoreError(_ => message)
+          }
+          Promise.resolve(())
+        })
+        ->Promise.catch(_ => {
+          setRestoreError(_ => "Could not read that file. Choose it again.")
+          Promise.resolve(())
+        })
+        ->ignore
+      }
+    }
+  }
+
+  let restore = restored => {
+    commit(restored)
+    setSelectedId(_ => "")
+    setDeleteTargetId(_ => "")
+    setNote(_ => "")
+    setInteractionDate(_ => today())
+    setCalendarOpen(_ => false)
+    setDateError(_ => "")
+    setRestorePreview(_ => None)
+    setBackupOpen(_ => false)
+  }
+
+  <div className="app-shell">
+    <aside className="sidebar">
+      <div className="brand">
+        <span className="brand-symbol" ariaHidden=true><span></span><span></span><span></span></span>
+        <div><strong>{React.string("good faith")}</strong><small>{React.string("THE RECIPROCITY LOG")}</small></div>
+      </div>
+
+      <div className="sidebar-main">
+        <div className="section-head"><h2>{React.string("People")}</h2><span>{React.string(Int.toString(Array.length(people)))}</span></div>
+        <nav ariaLabel="People">
+          {people->Array.map(person => {
+            let phase = State.phase(person.entries)
+            let active = switch selected { | Some(current) => current.id == person.id | None => false }
+            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
+              <span className="avatar">{React.string(person.name->String.slice(~start=0, ~end=1)->String.toUpperCase)}</span>
+              <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(State.phaseLabel(phase))}</small></span>
+              <span className={"mini-status " ++ moveClass(State.nextMove(phase))}></span>
+            </button>
+          })->React.array}
+        </nav>
+
+        <form className="add-form" onSubmit={addPerson}>
+          <label htmlFor="new-person">{React.string("Add someone")}</label>
+          <div className="add-row">
+            <input id="new-person" type_="text" placeholder="Their name" value={newName} maxLength=60 onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
+            <button type_="submit" ariaLabel="Add person" disabled={newName->String.trim == ""}>{React.string("+")}</button>
+          </div>
+        </form>
+
+        <section className="backup-tools" ariaLabel="Backup and restore">
+          <button className="backup-toggle" type_="button" ariaExpanded={backupOpen} onClick={_ => setBackupOpen(previous => !previous)}>{React.string("Backup & restore")}<span ariaHidden=true>{React.string(backupOpen ? "−" : "+")}</span></button>
+          {backupOpen
+            ? <div className="backup-body">
+                <p>{React.string("Save a copy of your ledger, or restore one from a JSON file.")}</p>
+                <button className="backup-download" type_="button" onClick={_ => download(Storage.backup(people))}>{React.string("Download backup")}</button>
+                <label className="backup-file-label" htmlFor="backup-file">{React.string("Restore from file")}</label>
+                <input key={Int.toString(fileInputKey)} id="backup-file" className="backup-file" type_="file" accept=".json,application/json" onChange={chooseBackup} />
+                {restoreError != "" ? <p className="restore-error" role="alert">{React.string(restoreError)}</p> : React.null}
+                {switch restorePreview {
+                | None => React.null
+                | Some(restored) => {
+                    let interactions = restored->Array.reduce(0, (total, person) => total + Array.length(person.entries))
+                    <div className="restore-preview">
+                      <strong>{React.string(countLabel(Array.length(restored), "person", "people") ++ " · " ++ countLabel(interactions, "interaction", "interactions"))}</strong>
+                      <p>{React.string("Restore this backup? It will replace your current ledger (" ++ countLabel(Array.length(people), "person", "people") ++ ").")}</p>
+                      <div><button type_="button" onClick={_ => setRestorePreview(_ => None)}>{React.string("Keep current")}</button><button type_="button" className="restore-confirm" onClick={_ => restore(restored)}>{React.string("Replace ledger")}</button></div>
+                    </div>
+                  }
+                }}
+              </div>
+            : React.null}
+        </section>
+        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {setShowInfo(previous => !previous); setCalendarOpen(_ => false); scrollTo(0, 0)}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}<span ariaHidden=true>{React.string(showInfo ? "←" : "↗")}</span></button>
+        <section className="theme-tools" ariaLabel="Appearance">
+          <p>{React.string("Appearance")}</p>
+          <div className="theme-options" role="group" ariaLabel="Color theme">
+            {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
+          </div>
+        </section>
+      </div>
+      <p className="sidebar-foot">{React.string("Private to this browser · No account needed")}</p>
+    </aside>
+
+    <main className="main-content">
+      <header className="topbar">
+        <span>{React.string("A clearer way to keep your balance.")}</span>
+        <span className="topbar-right"><span className="live-dot"></span>{React.string("Your personal ledger")}</span>
+      </header>
+
+      {if showInfo {
+        <Info />
+      } else {
+      switch selected {
+      | None =>
+        <section className="empty-state">
+          <span className="empty-art" ariaHidden=true><span></span><span></span><span></span></span>
+          <h1>{React.string("Start with good faith.")}</h1>
+          <p>{React.string("Add a person, then log whether they cooperated or defected after each interaction. You’ll always see the next suggested move.")}</p>
+          <a href="#new-person">{React.string("Add your first person ↗")}</a>
+        </section>
+      | Some(person) => {
+          let phase = State.phase(person.entries)
+          let next = State.nextMove(phase)
+          let count = Array.length(person.entries)
+          let history = person.entries->State.orderedEntries->Belt.Array.reverse
+          <div className="detail">
+            <div className="detail-heading">
+              <div><p className="context-label">{React.string("Relationship ledger")}</p><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
+              <button className="text-button delete-button" type_="button" ariaExpanded={deleteTargetId == person.id} onClick={_ => setDeleteTargetId(_ => deleteTargetId == person.id ? "" : person.id)}>{React.string("Delete person")}</button>
+            </div>
+
+            {deleteTargetId == person.id
+              ? <section className="delete-confirmation" ariaLabel="Confirm deletion">
+                  <div><strong>{React.string("Delete " ++ person.name ++ "?")}</strong><p>{React.string("Their interaction history will be removed from this browser permanently.")}</p></div>
+                  <div className="delete-actions"><button type_="button" className="cancel-delete" onClick={_ => setDeleteTargetId(_ => "")}>{React.string("Keep person")}</button><button type_="button" className="confirm-delete" onClick={_ => remove(person)}>{React.string("Delete permanently")}</button></div>
+                </section>
+              : React.null}
+
+            <section className={"decision-panel " ++ moveClass(next)} ariaLabel="Suggested next move">
+              <div className="decision-copy">
+                <p className="panel-label">{React.string("YOUR NEXT MOVE")}</p>
+                <h2>{React.string(nextLabel(next))}<span>{React.string(".")}</span></h2>
+                <p>{React.string(State.explanation(phase))}</p>
+              </div>
+              <div className="decision-mark" ariaHidden=true>{React.string(next == State.Cooperate ? "C" : "D")}</div>
+              <div className="decision-bottom"><span className="status-indicator"></span><strong>{React.string(State.phaseLabel(phase))}</strong><span>{React.string(switch phase { | State.Grace(0) => "0 of 2 clean moves" | State.Grace(1) => "1 of 2 clean moves" | _ => "" })}</span></div>
+            </section>
+
+            <section className="record-section">
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log their move. The recommendation updates immediately.")}</p></div>
+              <label className="note-label" htmlFor="interaction-date">{React.string("When did it happen?")}</label>
+              <div className="date-row">
+                <div className="date-input-wrap">
+                  <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 onClick={_ => openCalendar()} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarOpen(_ => false); setDateError(_ => "")}} />
+                  <button className="calendar-toggle" type_="button" ariaLabel={calendarOpen ? "Close calendar" : "Open calendar"} ariaExpanded={calendarOpen} onClick={_ => calendarOpen ? setCalendarOpen(_ => false) : openCalendar()}><span className="calendar-glyph" ariaHidden=true></span></button>
+                </div>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string("Today")}</button>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => yesterday()); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string("Yesterday")}</button>
+              </div>
+              {calendarOpen
+                ? <section className="calendar-panel" ariaLabel="Choose interaction date">
+                    <div className="calendar-head">
+                      <button type_="button" ariaLabel="Previous month" disabled={calendar.previousDisabled} onClick={_ => setMonthKey(_ => calendar.previous)}>{React.string("‹")}</button>
+                      <strong>{React.string(calendar.title)}</strong>
+                      <button type_="button" ariaLabel="Next month" disabled={calendar.nextDisabled} onClick={_ => setMonthKey(_ => calendar.next)}>{React.string("›")}</button>
+                    </div>
+                    <div className="calendar-grid">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]->Array.map(day => <span key={day} className="calendar-weekday">{React.string(day)}</span>)->React.array}
+                      {calendar.days->Array.mapWithIndex((day, index) => day.date == ""
+                        ? <span key={Int.toString(index)} ariaHidden=true></span>
+                        : <button key={day.date} type_="button" className={interactionDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={interactionDate == day.date ? #"true" : #"false"} disabled={day.disabled} onClick={_ => {setInteractionDate(_ => day.date); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string(day.label)}</button>)->React.array}
+                    </div>
+                  </section>
+                : React.null}
+              {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
+              <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
+              <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <div className="move-buttons">
+                <button type_="button" className="move-button cooperate" onClick={_ => log(person, State.Cooperate)}><span className="move-glyph">{React.string("C")}</span><span><strong>{React.string("They cooperated")}</strong><small>{React.string("A good move")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
+                <button type_="button" className="move-button defect" onClick={_ => log(person, State.Defect)}><span className="move-glyph">{React.string("D")}</span><span><strong>{React.string("They defected")}</strong><small>{React.string("A broken agreement")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
+              </div>
+            </section>
+
+            <section className="history-section">
+              <div className="history-heading"><div><h2>{React.string("The pattern")}</h2><p>{React.string("Most recent first")}</p></div><button className="text-button" type_="button" disabled={count == 0} onClick={_ => undo(person)}>{React.string("Undo last entry")}</button></div>
+              {count == 0
+                ? <p className="history-empty">{React.string("No moves yet. Start with their next interaction.")}</p>
+                : <ol className="history-list">{history->Array.mapWithIndex((entry, index) => <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string(State.label(entry.move))}</strong>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>)->React.array}</ol>}
+            </section>
+          </div>
+        }
+      }
+      }}
+    </main>
+  </div>
+}
