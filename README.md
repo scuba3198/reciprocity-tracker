@@ -1,5 +1,7 @@
 # Good Faith
 
+**[Open the website](https://scuba3198.github.io/reciprocity-tracker/)**
+
 A ReScript + React tracker for the generous tit-for-tat rule. Each person has a separate interaction history. Log **their** move after an interaction; the app suggests **your next** move.
 
 Set when the interaction happened with the custom calendar, **Today**, **Yesterday**, or a date in `YYYY-MM-DD` / `YYYYMMDD` form. Backdated entries are replayed in date order; **Undo last entry** removes the most recently logged entry.
