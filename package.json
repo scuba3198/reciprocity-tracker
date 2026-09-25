@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "rescript build && vite --host 0.0.0.0",
     "build": "rescript build && vite build",
+    "build:pages": "rescript build && vite build --base=/reciprocity-tracker/",
     "check": "rescript build && node --test tests/state.test.mjs"
   },
   "dependencies": {
