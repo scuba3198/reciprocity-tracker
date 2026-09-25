@@ -18,13 +18,22 @@ let decodeEntry = json => switch JSON.Decode.object(json) {
     | Some(value) => value->normalizeDate->Nullable.toOption
     | None => numberField(obj, "at")->Option.flatMap(value => value->dateFromTimestamp->Nullable.toOption)
     }
-    switch (stringField(obj, "move"), stringField(obj, "note"), date) {
-  | (Some("Cooperate"), Some(note), Some(date)) => {
-      let entry: State.entry = {move: State.Cooperate, note, date}
+    let myMove = switch field(obj, "myMove") {
+    | None => Some(None)
+    | Some(value) => switch JSON.Decode.string(value) {
+      | Some("") => Some(None)
+      | Some("Cooperate") => Some(Some(State.Cooperate))
+      | Some("Defect") => Some(Some(State.Defect))
+      | _ => None
+      }
+    }
+    switch (stringField(obj, "move"), stringField(obj, "note"), date, myMove) {
+  | (Some("Cooperate"), Some(note), Some(date), Some(myMove)) => {
+      let entry: State.entry = {move: State.Cooperate, myMove, note, date}
       Some(entry)
     }
-  | (Some("Defect"), Some(note), Some(date)) => {
-      let entry: State.entry = {move: State.Defect, note, date}
+  | (Some("Defect"), Some(note), Some(date), Some(myMove)) => {
+      let entry: State.entry = {move: State.Defect, myMove, note, date}
       Some(entry)
     }
   | _ => None
@@ -68,6 +77,7 @@ let encodePeople = (people: array<State.person>) =>
     "name": person.name,
     "entries": person.entries->Array.map(entry => {
       "move": switch entry.move { | State.Cooperate => "Cooperate" | State.Defect => "Defect" },
+      "myMove": switch entry.myMove { | None => "" | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" },
       "note": entry.note,
       "date": entry.date,
     }),
@@ -77,7 +87,7 @@ let save = (people: array<State.person>) => setItem(key, stringify(encodePeople(
 
 let backup = (people: array<State.person>) => stringify({
   "format": "good-faith-backup",
-  "version": 2,
+  "version": 3,
   "people": encodePeople(people),
 })
 
@@ -86,7 +96,7 @@ let parseBackup = (raw: string): result<array<State.person>, string> => {
     switch raw->JSON.parseOrThrow->JSON.Decode.object {
     | None => Error("That file is not a Good Faith backup.")
     | Some(obj) => switch (stringField(obj, "format"), numberField(obj, "version"), field(obj, "people")->Option.flatMap(JSON.Decode.array)) {
-      | (Some("good-faith-backup"), Some(version), Some(items)) if version == 1.0 || version == 2.0 => {
+      | (Some("good-faith-backup"), Some(version), Some(items)) if version == 1.0 || version == 2.0 || version == 3.0 => {
           let people = items->Array.filterMap(decodePerson)
           // ponytail: quadratic duplicate check is fine for a personal ledger; use a set if backups become huge.
           let unique = people->Array.every(person => people->Array.filter(other => other.id == person.id)->Array.length == 1)

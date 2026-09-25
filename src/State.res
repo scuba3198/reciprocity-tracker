@@ -1,7 +1,8 @@
 type move = Cooperate | Defect
 type phase = Open | Grace(int) | Protect
 
-type entry = {move: move, note: string, date: string}
+type entry = {move: move, myMove: option<move>, note: string, date: string}
+type historyItem = {entry: entry, recommended: move}
 type person = {id: string, name: string, entries: array<entry>}
 
 @module("./InteractionDate.js") external orderedEntries: array<entry> => array<entry> = "orderedEntries"
@@ -22,6 +23,15 @@ let phase = (entries: array<entry>) =>
 let nextMove = phase => switch phase {
 | Protect => Defect
 | _ => Cooperate
+}
+
+let history = (entries: array<entry>): array<historyItem> => {
+  let current = ref(Open)
+  entries->orderedEntries->Array.map(entry => {
+    let recommended = nextMove(current.contents)
+    current.contents = advance(current.contents, entry.move)
+    {entry, recommended}
+  })
 }
 
 let label = move => switch move {

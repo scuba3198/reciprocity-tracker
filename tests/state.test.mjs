@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {advance, nextMove, phase, orderedEntries} from '../src/State.res.mjs'
+import {advance, nextMove, phase, orderedEntries, history} from '../src/State.res.mjs'
 import {backup, parseBackup} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
@@ -23,14 +23,16 @@ test('a second defection triggers a boundary until cooperation returns', () => {
 })
 
 test('backup round-trips and rejects incomplete or unrelated files', () => {
-  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', note: 'Missed a promise', date: '2024-02-29'}]}]
+  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29'}]}]
   assert.deepEqual(parseBackup(backup(people)), {TAG: 'Ok', _0: people})
   assert.equal(parseBackup('{broken').TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'other', version: 1, people})).TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 2, people: [{...people[0], entries: [{move: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
+  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 3, people: [{...people[0], entries: [{move: 'Defect', myMove: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 2, people: [people[0], people[0]]})).TAG, 'Error')
   const legacy = {format: 'good-faith-backup', version: 1, people: [{id: 'old', name: 'Older backup', entries: [{move: 'Cooperate', note: '', at: new Date(2024, 1, 29, 12).getTime()}]}]}
   assert.equal(parseBackup(JSON.stringify(legacy))._0[0].entries[0].date, '2024-02-29')
+  assert.equal(parseBackup(JSON.stringify(legacy))._0[0].entries[0].myMove, undefined)
 })
 
 test('interaction dates are valid local dates and backdated moves are replayed in date order', () => {
@@ -43,6 +45,14 @@ test('interaction dates are valid local dates and backdated moves are replayed i
   const earlier = {move: 'Cooperate', note: '', date: '2024-03-01'}
   assert.deepEqual(orderedEntries([later, earlier]), [earlier, later])
   assert.deepEqual(phase([later, earlier]), {TAG: 'Grace', _0: 0})
+})
+
+test('past suggestions follow date order and ignore what you actually did', () => {
+  const first = {move: 'Defect', myMove: 'Defect', note: '', date: '2024-03-01'}
+  const second = {move: 'Defect', myMove: 'Cooperate', note: '', date: '2024-03-02'}
+  const third = {move: 'Cooperate', myMove: undefined, note: '', date: '2024-03-03'}
+  assert.deepEqual(history([third, second, first]).map(item => item.recommended), ['Cooperate', 'Cooperate', 'Defect'])
+  assert.equal(nextMove(phase([third, second, first])), 'Cooperate')
 })
 
 test('calendar includes leap day and disables future dates', () => {

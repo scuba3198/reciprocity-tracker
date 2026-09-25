@@ -21,6 +21,7 @@ let make = () => {
   let (selectedId, setSelectedId) = React.useState(_ => "")
   let (newName, setNewName) = React.useState(_ => "")
   let (note, setNote) = React.useState(_ => "")
+  let (myMove, setMyMove) = React.useState(_ => None)
   let (interactionDate, setInteractionDate) = React.useState(today)
   let (calendarOpen, setCalendarOpen) = React.useState(_ => false)
   let (monthKey, setMonthKey) = React.useState(_ => today()->String.slice(~start=0, ~end=7))
@@ -73,11 +74,12 @@ let make = () => {
     switch interactionDate->normalizeDate->Nullable.toOption {
     | None => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
     | Some(date) => {
-        let entry: State.entry = {move, note: note->String.trim, date}
+        let entry: State.entry = {move, myMove, note: note->String.trim, date}
         commit(people->Array.map(item => item.id == person.id
           ? {...item, entries: Array.concat(item.entries, [entry])}
           : item))
         setNote(_ => "")
+        setMyMove(_ => None)
         setInteractionDate(_ => today())
         setCalendarOpen(_ => false)
         setDateError(_ => "")
@@ -130,6 +132,7 @@ let make = () => {
     setSelectedId(_ => "")
     setDeleteTargetId(_ => "")
     setNote(_ => "")
+    setMyMove(_ => None)
     setInteractionDate(_ => today())
     setCalendarOpen(_ => false)
     setDateError(_ => "")
@@ -150,7 +153,7 @@ let make = () => {
           {people->Array.map(person => {
             let phase = State.phase(person.entries)
             let active = switch selected { | Some(current) => current.id == person.id | None => false }
-            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
+            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
               <span className="avatar">{React.string(person.name->String.slice(~start=0, ~end=1)->String.toUpperCase)}</span>
               <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(State.phaseLabel(phase))}</small></span>
               <span className={"mini-status " ++ moveClass(State.nextMove(phase))}></span>
@@ -221,7 +224,7 @@ let make = () => {
           let phase = State.phase(person.entries)
           let next = State.nextMove(phase)
           let count = Array.length(person.entries)
-          let history = person.entries->State.orderedEntries->Belt.Array.reverse
+          let history = person.entries->State.history->Belt.Array.reverse
           <div className="detail">
             <div className="detail-heading">
               <div><p className="context-label">{React.string("Relationship ledger")}</p><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
@@ -274,6 +277,14 @@ let make = () => {
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <div className="own-move-field">
+                <p className="note-label">{React.string("What did you do? (optional)")}</p>
+                <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
+                  <button type_="button" ariaPressed={myMove == None ? #"true" : #"false"} className={myMove == None ? "selected" : ""} onClick={_ => setMyMove(_ => None)}>{React.string("Not recorded")}</button>
+                  <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
+                </div>
+              </div>
               <div className="move-buttons">
                 <button type_="button" className="move-button cooperate" onClick={_ => log(person, State.Cooperate)}><span className="move-glyph">{React.string("C")}</span><span><strong>{React.string("They cooperated")}</strong><small>{React.string("A good move")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
                 <button type_="button" className="move-button defect" onClick={_ => log(person, State.Defect)}><span className="move-glyph">{React.string("D")}</span><span><strong>{React.string("They defected")}</strong><small>{React.string("A broken agreement")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
@@ -284,7 +295,13 @@ let make = () => {
               <div className="history-heading"><div><h2>{React.string("The pattern")}</h2><p>{React.string("Most recent first")}</p></div><button className="text-button" type_="button" disabled={count == 0} onClick={_ => undo(person)}>{React.string("Undo last entry")}</button></div>
               {count == 0
                 ? <p className="history-empty">{React.string("No moves yet. Start with their next interaction.")}</p>
-                : <ol className="history-list">{history->Array.mapWithIndex((entry, index) => <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string(State.label(entry.move))}</strong>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>)->React.array}</ol>}
+                : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
+                    let entry = item.entry
+                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("Suggested then: " ++ nextLabel(item.recommended))}{switch entry.myMove {
+                      | None => React.null
+                      | Some(actual) => <span className={actual == item.recommended ? "actual-move" : "actual-move diverged"}>{React.string(" · You: " ++ nextLabel(actual) ++ (actual == item.recommended ? "" : " (different)"))}</span>
+                      }}</p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
+                  })->React.array}</ol>}
             </section>
           </div>
         }

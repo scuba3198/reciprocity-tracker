@@ -79,7 +79,7 @@ let make = () =>
         <p><strong>{React.string("One slip:")}</strong>{React.string(" D → C → C clears the strike. The next move stays C throughout.")}</p>
         <p><strong>{React.string("A repeated breach:")}</strong>{React.string(" D → C → D makes your next move D. Keep D while they keep defecting. When they cooperate, return to C; one more clean C resets trust.")}</p>
       </div>
-      <p>{React.string("The app records their moves, not your actions. Its recommendation assumes you follow the suggested move. “Withhold cooperation” means choosing an appropriate boundary; the model does not decide what that boundary should be.")}</p>
+      <p>{React.string("Their move is required; your move is optional. The app shows what it suggested before each interaction, so you can compare that with what you actually did. Recommendations still depend only on their dated moves. Recording a different choice documents it but does not change the rule or analyze whether your response caused an outcome. “Withhold cooperation” means choosing an appropriate boundary; the model does not decide what that boundary should be.")}</p>
     </section>
 
     <section className="info-section">
