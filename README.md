@@ -19,4 +19,4 @@ Data stays in this browser's local storage. Use **Backup & restore** to download
 
 Use **Appearance** for Auto (follows the device theme), Light, or Dark. The choice is saved in this browser.
 
-Open **How the method works** in the sidebar for the state machine, worked examples, research sources, and limits of applying a game model to people.
+Open **How the method works** in the sidebar for the state machine, worked examples, research sources, and practical scenarios where the rule may help or should not be used.
