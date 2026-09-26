@@ -29,6 +29,8 @@ let make = () => {
   let (monthKey, setMonthKey) = React.useState(_ => today()->String.slice(~start=0, ~end=7))
   let (dateError, setDateError) = React.useState(_ => "")
   let (deleteTargetId, setDeleteTargetId) = React.useState(_ => "")
+  let (editTargetId, setEditTargetId) = React.useState(_ => "")
+  let (editName, setEditName) = React.useState(_ => "")
   let (backupOpen, setBackupOpen) = React.useState(_ => false)
   let (restorePreview, setRestorePreview) = React.useState(_ => None)
   let (restoreError, setRestoreError) = React.useState(_ => "")
@@ -104,6 +106,35 @@ let make = () => {
     commit(people->Array.filter(item => item.id != person.id))
     setSelectedId(_ => "")
     setDeleteTargetId(_ => "")
+    setEditTargetId(_ => "")
+  }
+
+  let startEdit = (person: State.person) => {
+    setSelectedId(_ => person.id)
+    setShowInfo(_ => false)
+    setMobileMenuOpen(_ => false)
+    setDeleteTargetId(_ => "")
+    setEditName(_ => person.name)
+    setEditTargetId(_ => person.id)
+    scrollTo(0, 0)
+  }
+
+  let startDelete = (person: State.person) => {
+    setSelectedId(_ => person.id)
+    setShowInfo(_ => false)
+    setMobileMenuOpen(_ => false)
+    setEditTargetId(_ => "")
+    setDeleteTargetId(_ => person.id)
+    scrollTo(0, 0)
+  }
+
+  let rename = event => {
+    ReactEvent.Form.preventDefault(event)
+    let name = editName->String.trim
+    if name != "" {
+      commit(people->Array.map(person => person.id == editTargetId ? {...person, name} : person))
+      setEditTargetId(_ => "")
+    }
   }
 
   let chooseBackup = event => {
@@ -135,6 +166,7 @@ let make = () => {
     commit(restored)
     setSelectedId(_ => "")
     setDeleteTargetId(_ => "")
+    setEditTargetId(_ => "")
     setNote(_ => "")
     setMyMove(_ => None)
     setInteractionDate(_ => today())
@@ -156,9 +188,15 @@ let make = () => {
           {people->Array.map(person => {
             let decision = State.next(person.entries)
             let active = switch selected { | Some(current) => current.id == person.id | None => false }
-            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setMobileMenuOpen(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
-              <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
-            </button>
+            <div key={person.id} className="person-item">
+              <button type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setMobileMenuOpen(_ => false); setDeleteTargetId(_ => ""); setEditTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
+                <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
+              </button>
+              <div className="person-actions">
+                <button type_="button" ariaLabel={"Edit name for " ++ person.name} onClick={_ => startEdit(person)}>{React.string("Edit")}</button>
+                <button type_="button" ariaLabel={"Delete " ++ person.name} onClick={_ => startDelete(person)}>{React.string("Delete")}</button>
+              </div>
+            </div>
           })->React.array}
         </nav>
 
@@ -224,8 +262,20 @@ let make = () => {
           <div className="detail">
             <div className="detail-heading">
               <div><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
-              <button className="text-button delete-button" type_="button" ariaExpanded={deleteTargetId == person.id} onClick={_ => setDeleteTargetId(_ => deleteTargetId == person.id ? "" : person.id)}>{React.string("Delete person")}</button>
+              <div className="detail-actions">
+                <button className="text-button" type_="button" ariaExpanded={editTargetId == person.id} onClick={_ => editTargetId == person.id ? setEditTargetId(_ => "") : startEdit(person)}>{React.string("Edit name")}</button>
+                <button className="text-button delete-button" type_="button" ariaExpanded={deleteTargetId == person.id} onClick={_ => deleteTargetId == person.id ? setDeleteTargetId(_ => "") : startDelete(person)}>{React.string("Delete person")}</button>
+              </div>
             </div>
+
+            {editTargetId == person.id
+              ? <form className="rename-form" onSubmit={rename} ariaLabel="Edit person name">
+                  <label htmlFor="edit-person-name">{React.string("Name")}</label>
+                  <div><input id="edit-person-name" type_="text" value={editName} maxLength=60 onChange={event => setEditName(_ => JsxEvent.Form.target(event)["value"])} />
+                    <button type_="submit" disabled={editName->String.trim == ""}>{React.string("Save")}</button>
+                    <button type_="button" onClick={_ => setEditTargetId(_ => "")}>{React.string("Cancel")}</button></div>
+                </form>
+              : React.null}
 
             {deleteTargetId == person.id
               ? <section className="delete-confirmation" ariaLabel="Confirm deletion">

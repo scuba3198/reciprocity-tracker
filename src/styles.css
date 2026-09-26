@@ -105,4 +105,15 @@ html[data-theme="dark"] .decision-panel{border-color:#527760;background:#20372b}
 html[data-theme="dark"] .decision-panel.defect{border-color:#875b4c;background:#382821}
 html[data-theme="dark"] .decision-panel.pending{border-color:var(--line);background:#242c26}
 @media(max-width:760px){.decision-panel,.decision-panel.defect,.decision-panel.pending{padding:24px 22px}}
+.person-item{border-bottom:1px solid var(--line)}
+.person-item .person-link,.person-item .person-link:hover,.person-item .person-link.active{width:100%;padding-bottom:3px;border-bottom:0}
+.person-actions{display:flex;justify-content:flex-end;gap:16px;padding:0 7px 5px}
+.person-actions button{min-height:30px;padding:0;border:0;background:transparent;color:var(--muted);font-size:11px;text-decoration:underline;text-underline-offset:3px}
+.person-actions button:hover{color:var(--green)}.person-actions button:last-child:hover{color:var(--orange)}
+.detail-actions{display:flex;align-items:center;gap:20px;flex:none}
+.rename-form{margin:-20px 0 28px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rename-form label{display:block;margin-bottom:8px;color:var(--muted);font-size:12px;font-weight:700}
+.rename-form>div{display:flex;align-items:center;gap:15px}.rename-form input{flex:1;min-width:0;padding:10px 0;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent;color:var(--ink);font:inherit;outline:0}.rename-form input:focus{border-color:var(--green)}
+.rename-form button{min-height:44px;padding:0;border:0;background:transparent;color:var(--green);font-size:12px;font-weight:700}.rename-form button:disabled{opacity:.4}.rename-form button:last-child{color:var(--muted)}
+@media(max-width:760px){.person-item{flex:0 0 190px;width:190px}.person-item .person-link,.person-item .person-link:hover,.person-item .person-link.active{width:100%}.person-actions button{min-height:40px}.detail-heading{flex-wrap:wrap;gap:4px}.detail-actions{width:100%;justify-content:flex-start;gap:22px}.rename-form{margin:-10px 0 22px}}
 
