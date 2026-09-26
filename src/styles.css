@@ -119,3 +119,15 @@ html[data-theme="dark"] .decision-panel.pending{border-color:var(--line);backgro
 @media(max-width:760px){.own-move-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.own-move-options button,.own-move-options button:hover,.own-move-options button.selected{width:100%;min-width:0;min-height:44px;flex:none;text-align:center}}
 @media(max-width:760px){.sidebar:not(.extras-open) .info-nav.active{display:flex}}
 
+.account-tools { margin: 8px 5px 14px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.account-tools h2 { margin: 0 0 9px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.account-body { display: grid; gap: 7px; }
+.account-body p { margin: 0 0 3px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.account-body label { color: var(--muted); font-size: 11px; }
+.account-body input { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
+.account-body button, .account-error button { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-soft); color: var(--ink); font-size: 11px; font-weight: 600; }
+.account-error, .account-message { margin: 7px 0 0; color: #a54837; font-size: 11px; overflow-wrap: anywhere; }
+.account-error p { margin: 0 0 6px; }
+.account-message { color: var(--green); }
+.cloud-locked > :not(.cloud-loading) { display: none; }
+.cloud-loading { margin: auto; padding: 35px; color: var(--muted); text-align: center; }

@@ -7,10 +7,11 @@
     "dev": "rescript build && vite --host 0.0.0.0",
     "build": "rescript build && vite build",
     "build:pages": "rescript build && vite build --base=/reciprocity-tracker/",
-    "check": "rescript build && node --test tests/state.test.mjs"
+    "check": "rescript build && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@rescript/react": "^0.15.0",
+    "@supabase/supabase-js": "2.117.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

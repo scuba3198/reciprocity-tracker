@@ -31,7 +31,7 @@ let unsuitable: array<scenario> = [
   {title: "Accidents and missing information", detail: "Message failures, travel delays, time zones, and misunderstandings can look like a D. Check what happened before logging it."},
   {title: "Groups and institutions", detail: "A result caused by several people, a workplace system, or a platform cannot reliably be reduced to one person’s move."},
   {title: "Scorekeeping or testing loyalty", detail: "If the log is becoming a way to win arguments, provoke someone, or justify punishment, stop using the rule for that situation."},
-  {title: "Sensitive records on shared devices", detail: "Names and notes are stored in this browser, and backup JSON is readable. Do not record details that could put someone at risk if seen."},
+  {title: "Sensitive records", detail: "Names and notes are stored on this device while signed out and in your private cloud ledger while signed in. Do not record details that could put someone at risk if seen."},
   {title: "Automatic trust after harm", detail: "A few cooperative moves do not prove safety or restore trust. You may need a different form of repair, a longer boundary, or no further contact."},
 ]
 

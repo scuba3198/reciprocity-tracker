@@ -16,7 +16,6 @@ let optionalDateField = (obj, name) => switch field(obj, name) {
   | Some(value) => value->normalizeDate->Nullable.toOption
   }
 }
-let numberField = (obj, name) => field(obj, name)->Option.flatMap(JSON.Decode.float)
 let moveField = (obj, name) => switch stringField(obj, name) {
 | Some("Cooperate") => Some(State.Cooperate)
 | Some("Defect") => Some(State.Defect)
@@ -63,18 +62,20 @@ let decodePerson = json => switch JSON.Decode.object(json) {
   }
 }
 
+let decodePeople = (raw: string): array<State.person> => {
+  try {
+    switch raw->JSON.parseOrThrow->JSON.Decode.array {
+    | Some(people) => people->Array.filterMap(decodePerson)
+    | None => []
+    }
+  } catch {
+  | _ => []
+  }
+}
+
 let load = (): array<State.person> => switch getItem(key)->Nullable.toOption {
 | None => []
-| Some(raw) => {
-    try {
-      switch raw->JSON.parseOrThrow->JSON.Decode.array {
-      | Some(people) => people->Array.filterMap(decodePerson)
-      | None => []
-      }
-    } catch {
-    | _ => []
-    }
-  }
+| Some(raw) => decodePeople(raw)
 }
 
 let encodePeople = (people: array<State.person>) =>
@@ -92,33 +93,5 @@ let encodePeople = (people: array<State.person>) =>
     }),
   })
 
-let save = (people: array<State.person>) => setItem(key, stringify(encodePeople(people)))
-
-let backup = (people: array<State.person>) => stringify({
-  "format": "good-faith-backup",
-  "version": 4,
-  "people": encodePeople(people),
-})
-
-let parseBackup = (raw: string): result<array<State.person>, string> => {
-  try {
-    switch raw->JSON.parseOrThrow->JSON.Decode.object {
-    | None => Error("That file is not a Good Faith backup.")
-    | Some(obj) => switch (stringField(obj, "format"), numberField(obj, "version"), field(obj, "people")->Option.flatMap(JSON.Decode.array)) {
-      | (Some("good-faith-backup"), Some(4.0), Some(items)) => {
-          let people = items->Array.filterMap(decodePerson)
-          // ponytail: quadratic duplicate check is fine for a personal ledger; use a set if backups become huge.
-          let unique = people->Array.every(person => people->Array.filter(other => other.id == person.id)->Array.length == 1)
-          if Array.length(people) == Array.length(items) && unique {
-            Ok(people)
-          } else {
-            Error("This backup has invalid or duplicate people or interactions.")
-          }
-        }
-      | _ => Error("Choose a Good Faith backup made by this app.")
-      }
-    }
-  } catch {
-  | _ => Error("That file is not valid JSON.")
-  }
-}
+let serialize = (people: array<State.person>) => stringify(encodePeople(people))
+let save = (people: array<State.person>) => setItem(key, serialize(people))

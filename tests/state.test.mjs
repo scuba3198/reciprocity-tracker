@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {next, orderedEntries, history} from '../src/State.res.mjs'
-import {backup, load, parseBackup, save} from '../src/Storage.res.mjs'
+import {load, save} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
 const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category, myActionDate: '', theirActionDate: ''})
@@ -32,33 +32,6 @@ test('CURE remembers the full history and recomputes the advice before each roun
     [[0, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect'], [1, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect']])
   assert.equal(next(rounds).move, 'Defect')
   assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
-})
-
-test('backup round-trips action dates and defaults them for older entries', () => {
-  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29', category: 'Commitment', myActionDate: '2024-02-27', theirActionDate: ''}]}]
-  assert.deepEqual(parseBackup(backup(people)), {TAG: 'Ok', _0: people})
-  const legacy = JSON.parse(backup(people))
-  delete legacy.people[0].entries[0].category
-  delete legacy.people[0].entries[0].myActionDate
-  delete legacy.people[0].entries[0].theirActionDate
-  assert.deepEqual(parseBackup(JSON.stringify(legacy))._0[0].entries[0].category, '')
-  assert.deepEqual([parseBackup(JSON.stringify(legacy))._0[0].entries[0].myActionDate, parseBackup(JSON.stringify(legacy))._0[0].entries[0].theirActionDate], ['', ''])
-  for (const date of [null, 7, {}, '2024-02-30', '2024-03-01']) {
-    const malformed = JSON.parse(backup(people))
-    malformed.people[0].entries[0].myActionDate = date
-    assert.equal(parseBackup(JSON.stringify(malformed)).TAG, 'Error')
-  }
-  for (const category of [null, 7, {}]) {
-    const malformed = JSON.parse(backup(people))
-    malformed.people[0].entries[0].category = category
-    assert.equal(parseBackup(JSON.stringify(malformed)).TAG, 'Error')
-  }
-  assert.equal(parseBackup('{broken').TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'other', version: 1, people})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [{...people[0], entries: [{move: 'Other', myMove: 'Cooperate', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [{...people[0], entries: [{move: 'Defect', myMove: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [people[0], people[0]]})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 3, people})).TAG, 'Error')
 })
 
 test('CURE starts a fresh ledger and loads only its new storage key', () => {

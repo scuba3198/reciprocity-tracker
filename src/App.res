@@ -1,8 +1,9 @@
-type backupFile
 type calendarDay = {date: string, label: string, accessible: string, disabled: bool}
 type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
-@send external readFile: backupFile => promise<string> = "text"
-@module("./BackupDownload.js") external download: string => unit = "download"
+@module("./Supabase.js") external auth: (string, string, string) => promise<string> = "auth"
+@module("./Supabase.js") external subscribeAuth: ((string, string) => unit) => (unit => unit) = "subscribe"
+@module("./Supabase.js") external loadOrMigrate: (string, string) => promise<string> = "loadOrMigrate"
+@module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
@@ -16,13 +17,11 @@ let moveClass = move => switch move { | State.Cooperate => "cooperate" | State.D
 let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
 let decisionClass = (decision: State.decision) => moveClass(decision.move)
 let decisionLabel = (decision: State.decision) => nextLabel(decision.move)
-let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
 let navIcon = kind => {
   let shape = switch kind {
   | "people" => "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
   | "ledger" => "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 8h10M7 12h10M7 16h7"
   | "insights" => "M4 20V11M10 20V5M16 20v-8M22 20V8M2 20h20"
-  | "backup" => "M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"
   | _ => "M10 2h4l.6 2.2 1.5.9 2.2-.6 2 3.5-1.6 1.6v1.8l1.6 1.6-2 3.5-2.2-.6-1.5.9L14 20h-4l-.6-2.2-1.5-.9-2.2.6-2-3.5 1.6-1.6v-1.8L3.7 9l2-3.5 2.2.6 1.5-.9L10 2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"
   }
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" ariaHidden=true><path d={shape} /></svg>
@@ -30,7 +29,7 @@ let navIcon = kind => {
 
 @react.component
 let make = () => {
-  let (people, setPeople) = React.useState(Storage.load)
+  let (people, setPeople) = React.useState(_ => [])
   let (selectedId, setSelectedId) = React.useState(_ => "")
   let (newName, setNewName) = React.useState(_ => "")
   let (note, setNote) = React.useState(_ => "")
@@ -48,10 +47,16 @@ let make = () => {
   let (deleteTargetId, setDeleteTargetId) = React.useState(_ => "")
   let (editTargetId, setEditTargetId) = React.useState(_ => "")
   let (editName, setEditName) = React.useState(_ => "")
-  let (backupOpen, setBackupOpen) = React.useState(_ => false)
-  let (restorePreview, setRestorePreview) = React.useState(_ => None)
-  let (restoreError, setRestoreError) = React.useState(_ => "")
-  let (fileInputKey, setFileInputKey) = React.useState(_ => 0)
+  let (userId, setUserId) = React.useState(_ => "")
+  let (email, setEmail) = React.useState(_ => "")
+  let (password, setPassword) = React.useState(_ => "")
+  let (authReady, setAuthReady) = React.useState(_ => false)
+  let (cloudReady, setCloudReady) = React.useState(_ => false)
+  let (authBusy, setAuthBusy) = React.useState(_ => false)
+  let (authError, setAuthError) = React.useState(_ => "")
+  let (authMessage, setAuthMessage) = React.useState(_ => "")
+  let (syncError, setSyncError) = React.useState(_ => "")
+  let (syncing, setSyncing) = React.useState(_ => false)
   let (showInfo, setShowInfo) = React.useState(_ => false)
   let (returnView, setReturnView) = React.useState(_ => "home")
   let (showDashboard, setShowDashboard) = React.useState(_ => true)
@@ -63,9 +68,81 @@ let make = () => {
   let (searchQuery, setSearchQuery) = React.useState(_ => "")
   let (theme, setTheme) = React.useState(loadTheme)
 
+  React.useEffect0(() => {
+    let unsubscribe = subscribeAuth((id, accountEmail) => {
+      setAuthReady(_ => true)
+      setUserId(_ => id)
+      setEmail(_ => accountEmail)
+      setAuthError(_ => "")
+      setPeople(_ => [])
+      setSelectedId(_ => "")
+      if id == "" {
+        setPeople(_ => Storage.load())
+        setCloudReady(_ => true)
+        setSyncError(_ => "")
+      } else {
+        setCloudReady(_ => false)
+        loadOrMigrate(id, Storage.serialize(Storage.load()))
+        ->Promise.then(raw => {
+          setPeople(_ => Storage.decodePeople(raw))
+          setCloudReady(_ => true)
+          Promise.resolve(())
+        })
+        ->Promise.catch(_error => {
+          setSyncError(_ => "Could not load your cloud ledger. Retry to continue.")
+          Promise.resolve(())
+        })
+        ->ignore
+      }
+    })
+    Some(() => unsubscribe())
+  })
+
   let commit = next => {
-    Storage.save(next)
-    setPeople(_ => next)
+    if cloudReady {
+      if userId == "" {
+        Storage.save(next)
+      } else {
+        setSyncing(_ => true)
+        saveCloud(userId, Storage.serialize(next))
+        ->Promise.then(result => {
+          if result == "saved" {setSyncing(_ => false); setSyncError(_ => "")}
+          if result->String.startsWith("error:") {setSyncing(_ => false); setSyncError(_ => "Cloud sync failed. Your changes remain on this screen; retry when online.")}
+          Promise.resolve(())
+        })
+        ->ignore
+      }
+      setPeople(_ => next)
+    }
+  }
+
+  let retrySync = () => {
+    if userId == "" || !cloudReady {
+      setCloudReady(_ => false)
+      loadOrMigrate(userId, Storage.serialize(Storage.load()))
+      ->Promise.then(raw => {setPeople(_ => Storage.decodePeople(raw)); setCloudReady(_ => true); setSyncError(_ => ""); Promise.resolve(())})
+      ->Promise.catch(_error => {setSyncError(_ => "Could not load your cloud ledger. Retry to continue."); Promise.resolve(())})
+      ->ignore
+    } else {
+      setSyncing(_ => true)
+      saveCloud(userId, Storage.serialize(people))
+      ->Promise.then(result => {
+        if result == "saved" {setSyncing(_ => false); setSyncError(_ => "")}
+        if result->String.startsWith("error:") {setSyncing(_ => false); setSyncError(_ => "Cloud sync failed. Your changes remain on this screen; retry when online.")}
+        Promise.resolve(())
+      })
+      ->ignore
+    }
+  }
+
+  let runAuth = (action: string) => {
+    setAuthBusy(_ => true)
+    setAuthError(_ => "")
+    setAuthMessage(_ => "")
+    auth(action, email->String.trim, password)
+    ->Promise.then(message => {setAuthMessage(_ => message); setPassword(_ => ""); setAuthBusy(_ => false); Promise.resolve(())})
+    ->Promise.catch(_ => {setAuthError(_ => "Sign-in failed. Check your email and password, then try again."); setAuthBusy(_ => false); Promise.resolve(())})
+    ->ignore
   }
 
   let selected = switch Belt.Array.getBy(people, person => person.id == selectedId) {
@@ -279,51 +356,6 @@ let make = () => {
     }
   }
 
-  let chooseBackup = event => {
-    let files: array<backupFile> = JsxEvent.Form.target(event)["files"]
-    setFileInputKey(previous => previous + 1)
-    switch Belt.Array.get(files, 0) {
-    | None => ()
-    | Some(file) => {
-        setRestoreError(_ => "")
-        setRestorePreview(_ => None)
-        file->readFile
-        ->Promise.then(raw => {
-          switch Storage.parseBackup(raw) {
-          | Ok(restored) => setRestorePreview(_ => Some(restored))
-          | Error(message) => setRestoreError(_ => message)
-          }
-          Promise.resolve(())
-        })
-        ->Promise.catch(_ => {
-          setRestoreError(_ => "Could not read that file. Choose it again.")
-          Promise.resolve(())
-        })
-        ->ignore
-      }
-    }
-  }
-
-  let restore = restored => {
-    commit(restored)
-    setSelectedId(_ => "")
-    setDeleteTargetId(_ => "")
-    setEditTargetId(_ => "")
-    setNote(_ => "")
-    setMyMove(_ => None)
-    setCategory(_ => "")
-    setCategoryOpen(_ => false)
-    setInteractionDate(_ => today())
-    setMyActionDate(_ => "")
-    setTheirActionDate(_ => "")
-    setActionDatesOpen(_ => false)
-    setActionDateError(_ => "")
-    setCalendarTarget(_ => "")
-    setDateError(_ => "")
-    setRestorePreview(_ => None)
-    setBackupOpen(_ => false)
-  }
-
   <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
     <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
@@ -350,36 +382,33 @@ let make = () => {
           <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
         </nav>
 
-        <section className="backup-tools" ariaLabel="Backup and restore">
-          <button className="backup-toggle" title="Backup & restore" type_="button" ariaExpanded={backupOpen} onClick={_ => {setSidebarCollapsed(_ => false); setBackupOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("backup")}</span><span className="sidebar-nav-label">{React.string("Backup & restore")}</span></button>
-          {backupOpen
-            ? <div className="backup-body">
-                <p>{React.string("Save a copy of your ledger, or restore one from a JSON file.")}</p>
-                <button className="backup-download" type_="button" onClick={_ => download(Storage.backup(people))}>{React.string("Download backup")}</button>
-                <label className="backup-file-label" htmlFor="backup-file">{React.string("Restore from file")}</label>
-                <input key={Int.toString(fileInputKey)} id="backup-file" className="backup-file" type_="file" accept=".json,application/json" onChange={chooseBackup} />
-                {restoreError != "" ? <p className="restore-error" role="alert">{React.string(restoreError)}</p> : React.null}
-                {switch restorePreview {
-                | None => React.null
-                | Some(restored) => {
-                    let interactions = restored->Array.reduce(0, (total, person) => total + Array.length(person.entries))
-                    <div className="restore-preview">
-                      <strong>{React.string(countLabel(Array.length(restored), "person", "people") ++ " · " ++ countLabel(interactions, "interaction", "interactions"))}</strong>
-                      <p>{React.string("Restore this backup? It will replace your current ledger (" ++ countLabel(Array.length(people), "person", "people") ++ ").")}</p>
-                      <div><button type_="button" onClick={_ => setRestorePreview(_ => None)}>{React.string("Keep current")}</button><button type_="button" className="restore-confirm" onClick={_ => restore(restored)}>{React.string("Replace ledger")}</button></div>
-                    </div>
-                  }
-                }}
+        <section className="account-tools" ariaLabel="Cloud account">
+          <h2>{React.string("Cloud sync")}</h2>
+          {userId != ""
+            ? <div className="account-body">
+                <p>{React.string(email)}</p>
+                <p>{React.string(syncing ? "Saving changes…" : cloudReady ? "Ledger synced to your account." : "Loading your ledger…")}</p>
+                <button type_="button" onClick={_ => runAuth("signout")} disabled={authBusy}>{React.string("Sign out")}</button>
               </div>
-            : React.null}
+            : <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("signin")}}>
+                <label htmlFor="account-email">{React.string("Email")}</label>
+                <input id="account-email" type_="email" autoComplete="email" required=true value={email} onChange={event => setEmail(_ => JsxEvent.Form.target(event)["value"])} />
+                <label htmlFor="account-password">{React.string("Password")}</label>
+                <input id="account-password" type_="password" autoComplete="current-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
+                <button type_="submit" disabled={authBusy}>{React.string("Sign in")}</button>
+                <button type_="button" disabled={authBusy || email->String.trim == "" || String.length(password) < 8} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
+              </form>}
+          {authError != "" ? <p role="alert" className="account-error">{React.string(authError)}</p> : React.null}
+          {authMessage != "" ? <p role="status" className="account-message">{React.string(authMessage)}</p> : React.null}
+          {syncError != "" ? <div className="account-error" role="alert"><p>{React.string(syncError)}</p><button type_="button" disabled={userId == "" || syncing} onClick={_ => retrySync()}>{React.string(cloudReady ? "Retry sync" : "Retry loading")}</button></div> : React.null}
         </section>
         <button className="sidebar-settings-toggle" title="Settings" type_="button" ariaExpanded={sidebarSettingsOpen} onClick={_ => {setSidebarCollapsed(_ => false); setSidebarSettingsOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
 
         <form className="add-form" onSubmit={addPerson}>
           <label htmlFor="new-person">{React.string("Quick add")}</label>
           <div className="add-row">
-            <input id="new-person" type_="text" placeholder="Their name" value={newName} maxLength=60 onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
-            <button type_="submit" ariaLabel="Add person" disabled={newName->String.trim == ""}>{React.string("+")}</button>
+            <input id="new-person" type_="text" placeholder="Their name" value={newName} maxLength=60 disabled={!cloudReady} onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
+            <button type_="submit" ariaLabel="Add person" disabled={!cloudReady || newName->String.trim == ""}>{React.string("+")}</button>
           </div>
         </form>
 
@@ -396,10 +425,11 @@ let make = () => {
         </div>
         <div className="sidebar-quote"><p>{React.string("Patterns are worth noticing. People are more than patterns.")}</p></div>
       </div>
-      <p className="sidebar-foot">{React.string("Private to this browser · No account needed")}</p>
+      <p className="sidebar-foot">{React.string("Your ledger is stored on this device until you sign in.")}</p>
     </aside>
 
-    <main className="main-content">
+    <main className={authReady && cloudReady ? "main-content" : "main-content cloud-locked"}>
+      {!authReady || !cloudReady ? <section className="cloud-loading" role="status">{React.string(syncError != "" ? "Cloud ledger unavailable. Use Retry loading in Cloud sync." : "Loading your ledger…")}</section> : React.null}
       {addOpen
         ? <form className="quick-add-panel" onSubmit={addPerson} ariaLabel="Add a person">
             <label htmlFor="quick-add-name">{React.string("Add a person")}</label>
@@ -454,7 +484,7 @@ let make = () => {
 
             {deleteTargetId == person.id
               ? <section className="delete-confirmation" ariaLabel="Confirm deletion">
-                  <div><strong>{React.string("Delete " ++ person.name ++ "?")}</strong><p>{React.string("Their interaction history will be removed from this browser permanently.")}</p></div>
+                  <div><strong>{React.string("Delete " ++ person.name ++ "?")}</strong><p>{React.string("Their interaction history will be removed from your ledger permanently.")}</p></div>
                   <div className="delete-actions"><button type_="button" className="cancel-delete" onClick={_ => setDeleteTargetId(_ => "")}>{React.string("Keep person")}</button><button type_="button" className="confirm-delete" onClick={_ => remove(person)}>{React.string("Delete permanently")}</button></div>
                 </section>
               : React.null}
