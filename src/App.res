@@ -36,6 +36,10 @@ let make = () => {
   let (restoreError, setRestoreError) = React.useState(_ => "")
   let (fileInputKey, setFileInputKey) = React.useState(_ => 0)
   let (showInfo, setShowInfo) = React.useState(_ => false)
+  let (returnView, setReturnView) = React.useState(_ => "home")
+  let (showDashboard, setShowDashboard) = React.useState(_ => true)
+  let (showInsights, setShowInsights) = React.useState(_ => false)
+  let (addOpen, setAddOpen) = React.useState(_ => false)
   let (mobileMenuOpen, setMobileMenuOpen) = React.useState(_ => false)
   let (theme, setTheme) = React.useState(loadTheme)
 
@@ -63,6 +67,43 @@ let make = () => {
     setTheme(_ => choice)
   }
 
+  let openHome = () => {
+    setShowDashboard(_ => true)
+    setShowInsights(_ => false)
+    setShowInfo(_ => false)
+    setMobileMenuOpen(_ => false)
+    scrollTo(0, 0)
+  }
+  let openLedger = () => {
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setShowInfo(_ => false)
+    setMobileMenuOpen(_ => false)
+    scrollTo(0, 0)
+  }
+  let openInsights = () => {
+    setShowDashboard(_ => false)
+    setShowInsights(_ => true)
+    setShowInfo(_ => false)
+    setMobileMenuOpen(_ => false)
+    scrollTo(0, 0)
+  }
+  let leaveInfo = () => switch returnView {
+  | "ledger" => openLedger()
+  | "insights" => openInsights()
+  | _ => openHome()
+  }
+  let openPerson = (person: State.person) => {
+    setSelectedId(_ => person.id)
+    setDeleteTargetId(_ => "")
+    setEditTargetId(_ => "")
+    setInteractionDate(_ => today())
+    setMyMove(_ => None)
+    setCalendarOpen(_ => false)
+    setDateError(_ => "")
+    openLedger()
+  }
+
   let addPerson = event => {
     ReactEvent.Form.preventDefault(event)
     let name = newName->String.trim
@@ -71,6 +112,9 @@ let make = () => {
       commit(Array.concat(people, [person]))
       setSelectedId(_ => person.id)
       setShowInfo(_ => false)
+      setShowDashboard(_ => false)
+      setShowInsights(_ => false)
+      setAddOpen(_ => false)
       setNewName(_ => "")
     }
   }
@@ -112,6 +156,8 @@ let make = () => {
   let startEdit = (person: State.person) => {
     setSelectedId(_ => person.id)
     setShowInfo(_ => false)
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
     setMobileMenuOpen(_ => false)
     setDeleteTargetId(_ => "")
     setEditName(_ => person.name)
@@ -122,6 +168,8 @@ let make = () => {
   let startDelete = (person: State.person) => {
     setSelectedId(_ => person.id)
     setShowInfo(_ => false)
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
     setMobileMenuOpen(_ => false)
     setEditTargetId(_ => "")
     setDeleteTargetId(_ => person.id)
@@ -179,17 +227,22 @@ let make = () => {
   <div className="app-shell">
     <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
-        <strong>{React.string("good faith")}</strong>
+        <button type_="button" onClick={_ => openHome()}>{React.string("good faith")}</button>
       </div>
 
       <div className="sidebar-main">
+        <nav className="primary-nav" ariaLabel="Main navigation">
+          <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
+          <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
+          <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
+        </nav>
         <div className="section-head"><h2>{React.string("People")}</h2><span>{React.string(Int.toString(Array.length(people)))}</span></div>
         <nav ariaLabel="People">
           {people->Array.map(person => {
             let decision = State.next(person.entries)
             let active = switch selected { | Some(current) => current.id == person.id | None => false }
             <div key={person.id} className="person-item">
-              <button type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setMobileMenuOpen(_ => false); setDeleteTargetId(_ => ""); setEditTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
+              <button type_="button" className={active && !showDashboard && !showInsights && !showInfo ? "person-link active" : "person-link"} onClick={_ => openPerson(person)}>
                 <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
               </button>
               <div className="person-actions">
@@ -233,7 +286,7 @@ let make = () => {
               </div>
             : React.null}
         </section>
-        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {setShowInfo(previous => !previous); setMobileMenuOpen(_ => false); setCalendarOpen(_ => false); scrollTo(0, 0)}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
+        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {if showInfo {leaveInfo()} else {setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger"); setShowInfo(_ => true); setShowDashboard(_ => false); setShowInsights(_ => false); setMobileMenuOpen(_ => false); setCalendarOpen(_ => false); scrollTo(0, 0)}}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
           <div className="theme-options" role="group" ariaLabel="Color theme">
@@ -245,15 +298,35 @@ let make = () => {
     </aside>
 
     <main className="main-content">
+      {addOpen
+        ? <form className="quick-add-panel" onSubmit={addPerson} ariaLabel="Add a person">
+            <label htmlFor="quick-add-name">{React.string("Add a person")}</label>
+            <div><input id="quick-add-name" type_="text" placeholder="Their name" value={newName} maxLength=60 onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
+              <button type_="submit" disabled={newName->String.trim == ""}>{React.string("Add person")}</button>
+              <button type_="button" onClick={_ => setAddOpen(_ => false)}>{React.string("Cancel")}</button></div>
+          </form>
+        : React.null}
       {if showInfo {
-        <Info />
+        <div className="info-view"><button className="info-back" type_="button" onClick={_ => leaveInfo()}>{React.string("Back to tracker")}</button><Info /></div>
+      } else if showInsights {
+        <section className="insights-page">
+          <h1>{React.string("Insights")}</h1>
+          <p>{React.string("A compact view of what you recorded. The difference is their cumulative defections minus yours, not a relationship score.")}</p>
+          <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{people->Array.map(person => {
+            let decision = State.next(person.entries)
+            <tr key={person.id}><th scope="row"><button type_="button" onClick={_ => openPerson(person)}>{React.string(person.name)}</button></th><td>{React.string(Int.toString(Array.length(person.entries)))}</td><td>{React.string(Int.toString(decision.difference))}</td><td>{React.string(nextLabel(decision.move))}</td></tr>
+          })->React.array}</tbody></table></div>
+          {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
+        </section>
+      } else if showDashboard {
+        <Dashboard people onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} />
       } else {
       switch selected {
       | None =>
         <section className="empty-state">
           <h1>{React.string("Start with good faith.")}</h1>
           <p>{React.string("Add a person, then log what both of you did in each interaction. CURE compares your cumulative defections with theirs to suggest your next move.")}</p>
-          <a href="#new-person">{React.string("Add your first person")}</a>
+          <button type_="button" onClick={_ => {setAddOpen(_ => true); scrollTo(0, 0)}}>{React.string("Add your first person")}</button>
         </section>
       | Some(person) => {
           let decision = State.next(person.entries)
@@ -286,7 +359,7 @@ let make = () => {
 
             <section className={"decision-panel " ++ decisionClass(decision)} ariaLabel="Suggested next move">
               <div className="decision-copy">
-                <h2>{React.string("Next move")}</h2>
+                <h2>{React.string("CURE suggests")}</h2>
                 <p className="decision-action">{React.string(decisionLabel(decision))}</p>
                 <p>{React.string(decision.explanation)}</p>
               </div>
@@ -351,5 +424,12 @@ let make = () => {
       }
       }}
     </main>
+    <nav className="mobile-bottom-nav" ariaLabel="Mobile navigation">
+      <button type_="button" className={showDashboard ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
+      <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
+      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setMobileMenuOpen(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
+      <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
+      <button type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => {setMobileMenuOpen(previous => !previous); scrollTo(0, 0)}}>{React.string("Settings")}</button>
+    </nav>
   </div>
 }
