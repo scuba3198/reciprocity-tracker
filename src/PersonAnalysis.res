@@ -5,18 +5,28 @@ let percent = probability => Int.toString(round(probability *. 100.)) ++ "%"
 let score = value => (value >= 0. ? "+" : "") ++ toFixed(value, 1)
 let interactionCount = count => Int.toString(count) ++ (count == 1 ? " relevant interaction" : " relevant interactions")
 let label = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
-let rating = (title, id, value, setValue) =>
-  <label className="analysis-rating" htmlFor={id}>
-    <span>{React.string(title)}</span>
-    <select id value={Int.toString(value)} onChange={event => {
-      switch Int.fromString(JsxEvent.Form.target(event)["value"]) {
-      | Some(next) if next >= 1 && next <= 5 => setValue(_ => next)
-      | _ => ()
-      }
-    }}>
-      {[1, 2, 3, 4, 5]->Array.map(number => <option key={Int.toString(number)} value={Int.toString(number)}>{React.string(Int.toString(number))}</option>)->React.array}
-    </select>
-  </label>
+type ratingHelp = {meaning: string, levels: array<string>}
+let rating = (title, id, value, setValue, openHelp, setOpenHelp, help: ratingHelp) =>
+  <div className="analysis-rating">
+    <div className="analysis-rating-main">
+      <div className="analysis-rating-name">
+        <label htmlFor={id}>{React.string(title)}</label>
+        <button className="rating-info" type_="button" ariaLabel={"About " ++ title} ariaExpanded={openHelp == id} ariaControls={id ++ "-help"} onClick={_ => setOpenHelp(previous => previous == id ? "" : id)}>{React.string("i")}</button>
+      </div>
+      <select id value={Int.toString(value)} onChange={event => {
+        switch Int.fromString(JsxEvent.Form.target(event)["value"]) {
+        | Some(next) if next >= 1 && next <= 5 => setValue(_ => next)
+        | _ => ()
+        }
+      }}>
+        {[1, 2, 3, 4, 5]->Array.map(number => <option key={Int.toString(number)} value={Int.toString(number)}>{React.string(Int.toString(number))}</option>)->React.array}
+      </select>
+    </div>
+    <div id={id ++ "-help"} className="rating-help" hidden={openHelp != id}>
+      <p>{React.string(help.meaning)}</p>
+      <ol>{help.levels->Array.mapWithIndex((text, index) => <li key={Int.toString(index)}><strong>{React.string(Int.toString(index + 1))}</strong><span>{React.string(text)}</span></li>)->React.array}</ol>
+    </div>
+  </div>
 
 @react.component
 let make = (~entries: array<State.entry>, ~cure: State.move) => {
@@ -26,6 +36,7 @@ let make = (~entries: array<State.entry>, ~cure: State.move) => {
   let (value, setValue) = React.useState(_ => 3)
   let (exploitation, setExploitation) = React.useState(_ => 3)
   let (relationship, setRelationship) = React.useState(_ => 3)
+  let (openHelp, setOpenHelp) = React.useState(_ => "")
   let categories = entries->Array.reduce([], (names, entry) =>
     entry.category != "" && !(names->Array.some(name => name == entry.category))
       ? Array.concat(names, [entry.category])
@@ -55,15 +66,15 @@ let make = (~entries: array<State.entry>, ~cure: State.move) => {
     {analysisOpen
       ? <section id="decision-analysis" className="analysis-panel" ariaLabel="Decision analysis">
           <h2>{React.string("Decision analysis")}</h2>
-          <p>{React.string("Choose the stakes for this decision. All ratings start at 3; 1 is very low and 5 is very high.")}</p>
+          <p>{React.string("Choose the stakes for your next choice with this person: cooperate or withhold cooperation. These ratings change only this optional comparison, not CURE or any interaction you log. All start at 3.")}</p>
           {Array.length(categories) > 0
             ? <label className="analysis-category" htmlFor="decision-category"><span>{React.string("Category")}</span><select id="decision-category" value={selectedCategory} onChange={event => setCategory(_ => JsxEvent.Form.target(event)["value"])}><option value="">{React.string("All categories")}</option>{categories->Array.map(name => <option key={name} value={name}>{React.string(name)}</option>)->React.array}</select></label>
             : React.null}
           <div className="analysis-ratings">
-            {rating("Cost of cooperating", "analysis-cost", cost, setCost)}
-            {rating("Value of successful reciprocity", "analysis-value", value, setValue)}
-            {rating("Cost of being exploited", "analysis-exploitation", exploitation, setExploitation)}
-            {rating("Importance of the long-term relationship", "analysis-relationship", relationship, setRelationship)}
+            {rating("Cost of cooperating", "analysis-cost", cost, setCost, openHelp, setOpenHelp, {meaning: "What you would give up by doing your part next time: time, effort, money, or another opportunity. Rate the cost of your own cooperation, whether or not they cooperate.", levels: ["Very low: almost no sacrifice, such as a quick, easy favor.", "Low: a small amount of time or effort you can spare.", "Moderate: a noticeable commitment, but manageable.", "High: a substantial cost or competing priority.", "Very high: a major sacrifice you may not be able to afford."]})}
+            {rating("Value of successful reciprocity", "analysis-value", value, setValue, openHelp, setOpenHelp, {meaning: "How valuable it would be if you both cooperate in the next interaction. Think about the shared result, not whether you expect them to follow through; the estimate handles that separately.", levels: ["Very low: the shared result would matter little.", "Low: helpful, but easy to do without.", "Moderate: a worthwhile benefit to you or a shared goal.", "High: an important result that would make a real difference.", "Very high: an especially valuable result for this situation."]})}
+            {rating("Cost of being exploited", "analysis-exploitation", exploitation, setExploitation, openHelp, setOpenHelp, {meaning: "The extra loss if you cooperate and they do not, beyond the ordinary cost of your effort. Think about the practical setback or broken expectation, without guessing their motives.", levels: ["Very low: little extra harm beyond your own effort.", "Low: a small setback or disappointment.", "Moderate: a meaningful loss you could recover from.", "High: a serious setback, expense, or broken commitment.", "Very high: a severe loss. If safety or essential needs are involved, use judgment outside this model."]})}
+            {rating("Importance of the long-term relationship", "analysis-relationship", relationship, setRelationship, openHelp, setOpenHelp, {meaning: "How much it matters to preserve a cooperative pattern with this person over future interactions. This measures the value of that ongoing connection; it never means tolerating harm or ignoring boundaries.", levels: ["Very low: little or no future interaction is expected.", "Low: future cooperation would be nice but not important.", "Moderate: an ongoing connection worth maintaining.", "High: a close or important continuing relationship.", "Very high: preserving healthy cooperation here is central to your future plans."]})}
           </div>
           <div className="analysis-results">
             <p><strong>{React.string("CURE recommendation: " ++ label(cure))}</strong></p>
