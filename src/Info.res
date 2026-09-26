@@ -65,8 +65,20 @@ let make = () =>
     </section>
 
     <section className="info-section">
+      <h2>{React.string("Bayesian behavior estimate")}</h2>
+      <p>{React.string("Good Faith estimates how often a person cooperates after each of your moves using the interactions you logged. Each estimate begins at 50% (a Beta(1,1) prior), then updates with their cooperative and defecting responses. Category estimates lean toward that person's overall estimate when a category has little history. The evidence label describes the number of relevant observations, not a statistical confidence interval.")}</p>
+      <p>{React.string("This predicts behavior from past logged interactions. It cannot determine motives or personality, and the estimate may change as you record more interactions.")}</p>
+    </section>
+
+    <section className="info-section">
+      <h2>{React.string("Optional decision analysis")}</h2>
+      <p>{React.string("Help me decide compares the expected utility of cooperating and defecting using those two estimated response probabilities and four stakes you choose. With cost C, successful reciprocity value V, exploitation cost E, and relationship importance R, the illustrative utility mapping is CC = V + R − C, CD = −C − E, DC = V/2 − R, and DD = −R. DC gives half the mutual-cooperation value for receiving help without reciprocating; both adversarial choices carry a relationship cost. These are transparent assumptions, not a uniquely correct payoff table.")}</p>
+      <p>{React.string("Expected utility depends on your own value judgments. It is a decision aid, not an objective moral rule. CURE remains the app's reciprocity strategy; this optional analysis may disagree with it and never overrides it. You make the final decision.")}</p>
+    </section>
+
+    <section className="info-section">
       <h2>{React.string("One person, selective entries")}</h2>
-      <p>{React.string("CURE tracks the cumulative imbalance across interactions with an opponent. The researchers also describe it as capturing a general sense of fairness in close relationships rather than an itemized account of every favor. Good Faith therefore keeps one ledger per person. An optional category labels an entry for your own review; it does not create another score or change d.")}</p>
+      <p>{React.string("CURE tracks the cumulative imbalance across interactions with an opponent. The researchers also describe it as capturing a general sense of fairness in close relationships rather than an itemized account of every favor. Good Faith therefore keeps one ledger per person. An optional category does not change CURE's count d; it can filter the separate behavior estimate.")}</p>
       <p>{React.string("Only record an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation in a reciprocal relationship. The model gives each logged D the same weight, but real events are not equal: a forgotten text, an unbought coffee, a serious broken promise, and abandonment in an emergency should not be entered as four interchangeable D's. Handle serious harm and emergencies directly, outside this rule.")}</p>
       <p>{React.string("A separate 2025 study found that behavior can spill between concurrent games, and that such links can also reduce cooperation. It does not test CURE as relationship advice or show that every kind of real-life event belongs in one binary count.")}</p>
     </section>

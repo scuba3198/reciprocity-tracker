@@ -290,6 +290,33 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .sidebar .backup-toggle .sidebar-nav-label, .sidebar .backup-toggle .sidebar-nav-icon { font: inherit; }
 .sidebar-nav-icon svg { display: block; width: 19px; height: 19px; }
 
+.person-analysis { margin-top: 20px; color: var(--ink); }
+.learned-behavior { border: 1px solid var(--line); border-radius: 10px; padding: 0 18px; background: var(--surface); }
+.learned-behavior summary { min-height: 46px; display: flex; align-items: center; cursor: pointer; font-size: 13px; font-weight: 700; }
+.learned-behavior summary::after { content: '+'; margin-left: auto; color: var(--green); font-size: 18px; font-weight: 400; }
+.learned-behavior[open] summary::after { content: '−'; }
+.learned-behavior[open] { padding-bottom: 18px; }
+.learned-behavior p, .analysis-panel p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+.behavior-estimates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 17px 0; }
+.behavior-estimates > div { display: grid; gap: 5px; padding: 14px; border-radius: 8px; background: var(--surface-soft); }
+.behavior-estimates span, .behavior-estimates small { color: var(--muted); font-size: 11px; }
+.behavior-estimates strong { color: var(--ink); font-size: 15px; }
+.analysis-toggle { min-height: 44px; margin-top: 9px; padding: 0; border: 0; background: none; color: var(--green); font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.analysis-panel { margin-top: 12px; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.analysis-panel h2 { margin: 0 0 8px; font: 500 27px Newsreader, Georgia, serif; }
+.analysis-category, .analysis-rating { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--ink); font-size: 12px; }
+.analysis-category { max-width: 340px; margin: 14px 0; }
+.analysis-ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.analysis-rating { min-height: 50px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.analysis-category select, .analysis-rating select { min-height: 36px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
+.analysis-rating select { flex: none; min-width: 50px; }
+.analysis-results { padding-top: 12px; border-top: 1px solid var(--line); }
+.analysis-results p { margin: 8px 0; }
+.analysis-results strong { color: var(--ink); font-size: 13px; }
+.analysis-results .analysis-caution, .analysis-results .analysis-disagreement { padding: 10px 12px; border-radius: 7px; background: var(--surface-soft); color: var(--ink); }
+.analysis-panel .analysis-footnote { margin-bottom: 0; }
+@media (max-width: 600px) { .behavior-estimates, .analysis-ratings { grid-template-columns: 1fr; } .analysis-panel { padding: 18px; } }
+
 @media (max-width: 760px) {
   .sidebar-collapse, .sidebar-search, .sidebar-settings-toggle, .sidebar-quote { display: none; }
   .sidebar.extras-open .backup-tools { display: block; margin: 5px 0 0; border-top: 1px solid var(--line); }

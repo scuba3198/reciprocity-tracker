@@ -530,6 +530,8 @@ let make = () => {
               <p className="decision-rule">{React.string(decision.rule)}</p>
             </section>
 
+            <PersonAnalysis key={person.id} entries={person.entries} cure={decision.move} />
+
             <section className="record-section">
               <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Only log an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation.")}</p></div>
               <label className="note-label" htmlFor="interaction-date">{React.string("When was this round completed?")}</label>
