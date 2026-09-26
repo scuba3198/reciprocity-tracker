@@ -4,7 +4,6 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 @module("./Supabase.js") external subscribeAuth: ((string, string) => unit) => (unit => unit) = "subscribe"
 @module("./Supabase.js") external loadOrMigrate: (string, string) => promise<string> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
-@val external errorText: 'a => string = "String"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
@@ -145,7 +144,17 @@ let make = () => {
       setAuthMessage(_ => "")
       auth(action, email->String.trim, password)
       ->Promise.then(message => {setAuthMessage(_ => message); setPassword(_ => ""); setAuthBusy(_ => false); Promise.resolve(())})
-      ->Promise.catch(error => {setAuthError(_ => errorText(error)); setAuthBusy(_ => false); Promise.resolve(())})
+      ->Promise.catch(error => {
+        let message = switch error->JsExn.fromException->Option.flatMap(JsExn.message) {
+        | Some(message) => message
+        | None => "Account request failed. Please try again."
+        }
+        setAuthError(_ => message == "User already registered"
+          ? "This email already has an account. Sign in with its password."
+          : message)
+        setAuthBusy(_ => false)
+        Promise.resolve(())
+      })
       ->ignore
     }
   }
