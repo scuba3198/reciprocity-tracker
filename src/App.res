@@ -16,6 +16,16 @@ let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.D
 let decisionClass = (decision: State.decision) => moveClass(decision.move)
 let decisionLabel = (decision: State.decision) => nextLabel(decision.move)
 let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
+let navIcon = kind => {
+  let shape = switch kind {
+  | "people" => "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+  | "ledger" => "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 8h10M7 12h10M7 16h7"
+  | "insights" => "M4 20V11M10 20V5M16 20v-8M22 20V8M2 20h20"
+  | "backup" => "M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"
+  | _ => "M10 2h4l.6 2.2 1.5.9 2.2-.6 2 3.5-1.6 1.6v1.8l1.6 1.6-2 3.5-2.2-.6-1.5.9L14 20h-4l-.6-2.2-1.5-.9-2.2.6-2-3.5 1.6-1.6v-1.8L3.7 9l2-3.5 2.2.6 1.5-.9L10 2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"
+  }
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" ariaHidden=true><path d={shape} /></svg>
+}
 
 @react.component
 let make = () => {
@@ -248,13 +258,13 @@ let make = () => {
             : React.null}
         </div>
         <nav className="primary-nav" ariaLabel="Main navigation">
-          <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("♧")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
-          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("▤")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
-          <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("▥")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
+          <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("people")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
+          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
+          <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
         </nav>
 
         <section className="backup-tools" ariaLabel="Backup and restore">
-          <button className="backup-toggle" title="Backup & restore" type_="button" ariaExpanded={backupOpen} onClick={_ => {setSidebarCollapsed(_ => false); setBackupOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("⇩")}</span><span className="sidebar-nav-label">{React.string("Backup & restore")}</span></button>
+          <button className="backup-toggle" title="Backup & restore" type_="button" ariaExpanded={backupOpen} onClick={_ => {setSidebarCollapsed(_ => false); setBackupOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("backup")}</span><span className="sidebar-nav-label">{React.string("Backup & restore")}</span></button>
           {backupOpen
             ? <div className="backup-body">
                 <p>{React.string("Save a copy of your ledger, or restore one from a JSON file.")}</p>
@@ -276,7 +286,7 @@ let make = () => {
               </div>
             : React.null}
         </section>
-        <button className="sidebar-settings-toggle" title="Settings" type_="button" ariaExpanded={sidebarSettingsOpen} onClick={_ => {setSidebarCollapsed(_ => false); setSidebarSettingsOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("⚙")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
+        <button className="sidebar-settings-toggle" title="Settings" type_="button" ariaExpanded={sidebarSettingsOpen} onClick={_ => {setSidebarCollapsed(_ => false); setSidebarSettingsOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
 
         <form className="add-form" onSubmit={addPerson}>
           <label htmlFor="new-person">{React.string("Quick add")}</label>
