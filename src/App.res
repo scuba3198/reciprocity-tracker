@@ -4,6 +4,7 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 @module("./Supabase.js") external subscribeAuth: ((string, string) => unit) => (unit => unit) = "subscribe"
 @module("./Supabase.js") external loadOrMigrate: (string, string) => promise<string> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
+@val external errorText: 'a => string = "String"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
@@ -136,13 +137,17 @@ let make = () => {
   }
 
   let runAuth = (action: string) => {
-    setAuthBusy(_ => true)
-    setAuthError(_ => "")
-    setAuthMessage(_ => "")
-    auth(action, email->String.trim, password)
-    ->Promise.then(message => {setAuthMessage(_ => message); setPassword(_ => ""); setAuthBusy(_ => false); Promise.resolve(())})
-    ->Promise.catch(_ => {setAuthError(_ => "Sign-in failed. Check your email and password, then try again."); setAuthBusy(_ => false); Promise.resolve(())})
-    ->ignore
+    if action == "signup" && (email->String.trim == "" || String.length(password) < 8) {
+      setAuthError(_ => "Enter your email and a password with at least 8 characters.")
+    } else {
+      setAuthBusy(_ => true)
+      setAuthError(_ => "")
+      setAuthMessage(_ => "")
+      auth(action, email->String.trim, password)
+      ->Promise.then(message => {setAuthMessage(_ => message); setPassword(_ => ""); setAuthBusy(_ => false); Promise.resolve(())})
+      ->Promise.catch(error => {setAuthError(_ => errorText(error)); setAuthBusy(_ => false); Promise.resolve(())})
+      ->ignore
+    }
   }
 
   let selected = switch Belt.Array.getBy(people, person => person.id == selectedId) {
@@ -393,10 +398,10 @@ let make = () => {
             : <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("signin")}}>
                 <label htmlFor="account-email">{React.string("Email")}</label>
                 <input id="account-email" type_="email" autoComplete="email" required=true value={email} onChange={event => setEmail(_ => JsxEvent.Form.target(event)["value"])} />
-                <label htmlFor="account-password">{React.string("Password")}</label>
+                <label htmlFor="account-password">{React.string("Password (at least 8 characters)")}</label>
                 <input id="account-password" type_="password" autoComplete="current-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
                 <button type_="submit" disabled={authBusy}>{React.string("Sign in")}</button>
-                <button type_="button" disabled={authBusy || email->String.trim == "" || String.length(password) < 8} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
+                <button type_="button" disabled={authBusy} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
               </form>}
           {authError != "" ? <p role="alert" className="account-error">{React.string(authError)}</p> : React.null}
           {authMessage != "" ? <p role="status" className="account-message">{React.string(authMessage)}</p> : React.null}
