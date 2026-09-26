@@ -170,10 +170,7 @@ let make = () => {
     }
   }
 
-  let selected = switch Belt.Array.getBy(people, person => person.id == selectedId) {
-  | Some(person) => Some(person)
-  | None => Belt.Array.get(people, 0)
-  }
+  let selected = Belt.Array.getBy(people, person => person.id == selectedId)
   let calendar = getCalendarMonth(monthKey)
 
   let openCalendar = (target, value) => {
@@ -231,12 +228,16 @@ let make = () => {
     setMobileMenuOpen(_ => false)
     scrollTo(0, 0)
   }
-  let openLedger = () => {
+  let showLedger = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
     setShowInfo(_ => false)
     setMobileMenuOpen(_ => false)
     scrollTo(0, 0)
+  }
+  let openLedger = () => {
+    setSelectedId(_ => "")
+    showLedger()
   }
   let openInsights = () => {
     setShowDashboard(_ => false)
@@ -255,7 +256,7 @@ let make = () => {
     scrollTo(0, 0)
   }
   let leaveInfo = () => switch returnView {
-  | "ledger" => openLedger()
+  | "ledger" => showLedger()
   | "insights" => openInsights()
   | _ => openHome()
   }
@@ -273,7 +274,7 @@ let make = () => {
     setCategoryOpen(_ => false)
     setCalendarTarget(_ => "")
     setDateError(_ => "")
-    openLedger()
+    showLedger()
   }
 
   let addPerson = event => {
@@ -487,16 +488,30 @@ let make = () => {
       } else {
       switch selected {
       | None =>
-        <section className="empty-state">
-          <h1>{React.string("Start with good faith.")}</h1>
-          <p>{React.string("Add a person, then log what both of you did in each interaction. CURE compares your cumulative defections with theirs to suggest your next move.")}</p>
-          <button type_="button" onClick={_ => {setAddOpen(_ => true); scrollTo(0, 0)}}>{React.string("Add your first person")}</button>
-        </section>
+        Array.length(people) == 0
+          ? <section className="empty-state">
+              <h1>{React.string("Start with good faith.")}</h1>
+              <p>{React.string("Add a person, then log what both of you did in each interaction. CURE compares your cumulative defections with theirs to suggest your next move.")}</p>
+              <button type_="button" onClick={_ => {setAddOpen(_ => true); scrollTo(0, 0)}}>{React.string("Add your first person")}</button>
+            </section>
+          : <section className="ledger-index">
+              <h1>{React.string("Ledgers")}</h1>
+              <p>{React.string("Choose a person to see their interaction history or log what happened next.")}</p>
+              <div className="ledger-person-list">{people->Array.map(person => {
+                let count = Array.length(person.entries)
+                <button key={person.id} type_="button" onClick={_ => openPerson(person)} ariaLabel={"Open " ++ person.name ++ "'s ledger"}>
+                  <span><strong>{React.string(person.name)}</strong><small>{React.string(Int.toString(count) ++ (count == 1 ? " interaction" : " interactions"))}</small></span>
+                  <span>{React.string("CURE: " ++ nextLabel(State.next(person.entries).move))}</span>
+                  <span ariaHidden=true>{React.string("›")}</span>
+                </button>
+              })->React.array}</div>
+            </section>
       | Some(person) => {
           let decision = State.next(person.entries)
           let count = Array.length(person.entries)
           let history = person.entries->State.history->Belt.Array.reverse
           <div className="detail">
+            <button className="text-button ledger-back" type_="button" onClick={_ => openLedger()}>{React.string("‹ All ledgers")}</button>
             <div className="detail-heading">
               <div><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
               <div className="detail-actions">
