@@ -42,7 +42,7 @@ let make = () => {
   let (theirActionDate, setTheirActionDate) = React.useState(_ => "")
   let (actionDatesOpen, setActionDatesOpen) = React.useState(_ => false)
   let (actionDateError, setActionDateError) = React.useState(_ => "")
-  let (calendarOpen, setCalendarOpen) = React.useState(_ => false)
+  let (calendarTarget, setCalendarTarget) = React.useState(_ => "")
   let (monthKey, setMonthKey) = React.useState(_ => today()->String.slice(~start=0, ~end=7))
   let (dateError, setDateError) = React.useState(_ => "")
   let (deleteTargetId, setDeleteTargetId) = React.useState(_ => "")
@@ -74,13 +74,48 @@ let make = () => {
   }
   let calendar = getCalendarMonth(monthKey)
 
-  let openCalendar = () => {
-    let date = switch interactionDate->normalizeDate->Nullable.toOption {
+  let openCalendar = (target, value) => {
+    let date = switch value->normalizeDate->Nullable.toOption {
     | Some(date) => date
-    | None => today()
+    | None => switch interactionDate->normalizeDate->Nullable.toOption {
+      | Some(date) => date
+      | None => today()
+      }
     }
     setMonthKey(_ => date->String.slice(~start=0, ~end=7))
-    setCalendarOpen(_ => true)
+    setCalendarTarget(_ => target)
+  }
+  let calendarPanel = (target, selectedDate, label) => {
+    if calendarTarget == target {
+      let latest = target == "round" ? today() : switch interactionDate->normalizeDate->Nullable.toOption {
+      | Some(date) => date
+      | None => today()
+      }
+      <section className="calendar-panel" ariaLabel={label}>
+        <div className="calendar-head">
+          <button type_="button" ariaLabel="Previous month" disabled={calendar.previousDisabled} onClick={_ => setMonthKey(_ => calendar.previous)}>{React.string("‹")}</button>
+          <strong>{React.string(calendar.title)}</strong>
+          <button type_="button" ariaLabel="Next month" disabled={calendar.nextDisabled || calendar.next > latest->String.slice(~start=0, ~end=7)} onClick={_ => setMonthKey(_ => calendar.next)}>{React.string("›")}</button>
+        </div>
+        <div className="calendar-grid">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]->Array.map(day => <span key={day} className="calendar-weekday">{React.string(day)}</span>)->React.array}
+          {calendar.days->Array.mapWithIndex((day, index) => day.date == ""
+            ? <span key={Int.toString(index)} ariaHidden=true></span>
+            : <button key={day.date} type_="button" className={selectedDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={selectedDate == day.date ? #"true" : #"false"} disabled={day.disabled || day.date > latest} onClick={_ => {
+                switch target {
+                | "my" => setMyActionDate(_ => day.date)
+                | "their" => setTheirActionDate(_ => day.date)
+                | _ => setInteractionDate(_ => day.date)
+                }
+                setCalendarTarget(_ => "")
+                setDateError(_ => "")
+                setActionDateError(_ => "")
+              }}>{React.string(day.label)}</button>)->React.array}
+        </div>
+      </section>
+    } else {
+      React.null
+    }
   }
   let chooseTheme = choice => {
     applyTheme(choice)
@@ -125,7 +160,7 @@ let make = () => {
     setMyMove(_ => None)
     setCategory(_ => "")
     setCategoryOpen(_ => false)
-    setCalendarOpen(_ => false)
+    setCalendarTarget(_ => "")
     setDateError(_ => "")
     openLedger()
   }
@@ -175,7 +210,7 @@ let make = () => {
             setTheirActionDate(_ => "")
             setActionDatesOpen(_ => false)
             setActionDateError(_ => "")
-            setCalendarOpen(_ => false)
+            setCalendarTarget(_ => "")
             setDateError(_ => "")
           }
         | _ => {
@@ -274,7 +309,7 @@ let make = () => {
     setTheirActionDate(_ => "")
     setActionDatesOpen(_ => false)
     setActionDateError(_ => "")
-    setCalendarOpen(_ => false)
+    setCalendarTarget(_ => "")
     setDateError(_ => "")
     setRestorePreview(_ => None)
     setBackupOpen(_ => false)
@@ -342,7 +377,7 @@ let make = () => {
         <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
 
         <div className={sidebarSettingsOpen ? "sidebar-settings-panel open" : "sidebar-settings-panel"}>
-        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {if showInfo {leaveInfo()} else {setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger"); setShowInfo(_ => true); setShowDashboard(_ => false); setShowInsights(_ => false); setMobileMenuOpen(_ => false); setCalendarOpen(_ => false); scrollTo(0, 0)}}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
+        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {if showInfo {leaveInfo()} else {setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger"); setShowInfo(_ => true); setShowDashboard(_ => false); setShowInsights(_ => false); setMobileMenuOpen(_ => false); setCalendarTarget(_ => ""); scrollTo(0, 0)}}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
           <div className="theme-options" role="group" ariaLabel="Color theme">
@@ -430,36 +465,22 @@ let make = () => {
               <p id="completion-date-help" className="date-help">{React.string("Use the date when both people had completed, missed, or otherwise resolved their part of this reciprocal round.")}</p>
               <div className="date-row">
                 <div className="date-input-wrap">
-                  <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 ariaDescribedby="completion-date-help" onClick={_ => openCalendar()} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}} />
-                  <button className="calendar-toggle" type_="button" ariaLabel={calendarOpen ? "Close calendar" : "Open calendar"} ariaExpanded={calendarOpen} onClick={_ => calendarOpen ? setCalendarOpen(_ => false) : openCalendar()}><span className="calendar-glyph" ariaHidden=true></span></button>
+                  <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 ariaDescribedby="completion-date-help" onClick={_ => openCalendar("round", interactionDate)} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setDateError(_ => ""); setActionDateError(_ => "")}} />
+                  <button className="calendar-toggle" type_="button" ariaLabel={calendarTarget == "round" ? "Close completion calendar" : "Open completion calendar"} ariaExpanded={calendarTarget == "round"} onClick={_ => calendarTarget == "round" ? setCalendarTarget(_ => "") : openCalendar("round", interactionDate)}><span className="calendar-glyph" ariaHidden=true></span></button>
                 </div>
-                <button type_="button" onClick={_ => {setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Today")}</button>
-                <button type_="button" onClick={_ => {setInteractionDate(_ => yesterday()); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Yesterday")}</button>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => today()); setCalendarTarget(_ => ""); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Today")}</button>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => yesterday()); setCalendarTarget(_ => ""); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Yesterday")}</button>
               </div>
-              {calendarOpen
-                ? <section className="calendar-panel" ariaLabel="Choose round completion date">
-                    <div className="calendar-head">
-                      <button type_="button" ariaLabel="Previous month" disabled={calendar.previousDisabled} onClick={_ => setMonthKey(_ => calendar.previous)}>{React.string("‹")}</button>
-                      <strong>{React.string(calendar.title)}</strong>
-                      <button type_="button" ariaLabel="Next month" disabled={calendar.nextDisabled} onClick={_ => setMonthKey(_ => calendar.next)}>{React.string("›")}</button>
-                    </div>
-                    <div className="calendar-grid">
-                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]->Array.map(day => <span key={day} className="calendar-weekday">{React.string(day)}</span>)->React.array}
-                      {calendar.days->Array.mapWithIndex((day, index) => day.date == ""
-                        ? <span key={Int.toString(index)} ariaHidden=true></span>
-                        : <button key={day.date} type_="button" className={interactionDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={interactionDate == day.date ? #"true" : #"false"} disabled={day.disabled} onClick={_ => {setInteractionDate(_ => day.date); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string(day.label)}</button>)->React.array}
-                    </div>
-                  </section>
-                : React.null}
+              {calendarPanel("round", interactionDate, "Choose round completion date")}
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
               <div className="action-dates-field">
-                <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => setActionDatesOpen(previous => !previous)}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
+                <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => {setActionDatesOpen(previous => !previous); setCalendarTarget(_ => "")}}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
                 {actionDatesOpen
                   ? <div id="action-dates" className="action-dates-inputs">
-                      <div><label className="note-label" htmlFor="my-action-date">{React.string("Your action date (optional)")}</label><input id="my-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={myActionDate} maxLength=10 onChange={event => {setMyActionDate(_ => JsxEvent.Form.target(event)["value"]); setActionDateError(_ => "")}} /></div>
-                      <div><label className="note-label" htmlFor="their-action-date">{React.string("Their action date (optional)")}</label><input id="their-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={theirActionDate} maxLength=10 onChange={event => {setTheirActionDate(_ => JsxEvent.Form.target(event)["value"]); setActionDateError(_ => "")}} /></div>
+                      <div><label className="note-label" htmlFor="my-action-date">{React.string("Your action date (optional)")}</label><div className="date-input-wrap"><input id="my-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={myActionDate} maxLength=10 onClick={_ => openCalendar("my", myActionDate)} onChange={event => {setMyActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" ariaLabel={calendarTarget == "my" ? "Close your action calendar" : "Open your action calendar"} ariaExpanded={calendarTarget == "my"} onClick={_ => calendarTarget == "my" ? setCalendarTarget(_ => "") : openCalendar("my", myActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{calendarPanel("my", myActionDate, "Choose your action date")}</div>
+                      <div><label className="note-label" htmlFor="their-action-date">{React.string("Their action date (optional)")}</label><div className="date-input-wrap"><input id="their-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={theirActionDate} maxLength=10 onClick={_ => openCalendar("their", theirActionDate)} onChange={event => {setTheirActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" ariaLabel={calendarTarget == "their" ? "Close their action calendar" : "Open their action calendar"} ariaExpanded={calendarTarget == "their"} onClick={_ => calendarTarget == "their" ? setCalendarTarget(_ => "") : openCalendar("their", theirActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{calendarPanel("their", theirActionDate, "Choose their action date")}</div>
                     </div>
                   : React.null}
                 {actionDateError != "" ? <p className="date-error" role="alert">{React.string(actionDateError)}</p> : React.null}
