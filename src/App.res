@@ -177,7 +177,7 @@ let make = () => {
   }
 
   <div className="app-shell">
-    <aside className={mobileMenuOpen || showInfo ? "sidebar extras-open" : "sidebar"}>
+    <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
         <strong>{React.string("good faith")}</strong>
       </div>
@@ -208,7 +208,7 @@ let make = () => {
           </div>
         </form>
 
-        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen || showInfo} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
+        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
 
         <section className="backup-tools" ariaLabel="Backup and restore">
           <button className="backup-toggle" type_="button" ariaExpanded={backupOpen} onClick={_ => setBackupOpen(previous => !previous)}>{React.string("Backup & restore")}<span ariaHidden=true>{React.string(backupOpen ? "−" : "+")}</span></button>
