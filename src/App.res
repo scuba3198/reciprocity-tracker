@@ -230,7 +230,8 @@ let make = () => {
         <button type_="button" onClick={_ => openHome()}>{React.string("good faith")}</button>
       </div>
 
-      <div className="sidebar-main">
+      <div id="mobile-settings-panel" className="sidebar-main">
+        <div className="mobile-settings-header"><h2>{React.string("Settings")}</h2><button type_="button" onClick={_ => setMobileMenuOpen(_ => false)}>{React.string("Close")}</button></div>
         <nav className="primary-nav" ariaLabel="Main navigation">
           <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
           <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
@@ -429,7 +430,7 @@ let make = () => {
       <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
       <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setMobileMenuOpen(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
       <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
-      <button type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => {setMobileMenuOpen(previous => !previous); scrollTo(0, 0)}}>{React.string("Settings")}</button>
+      <button type_="button" ariaExpanded={mobileMenuOpen} ariaControls="mobile-settings-panel" onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings")}</button>
     </nav>
   </div>
 }
