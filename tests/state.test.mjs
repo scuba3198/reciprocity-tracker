@@ -1,25 +1,33 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {advance, nextMove, phase, orderedEntries, history} from '../src/State.res.mjs'
+import {decide, next, orderedEntries, history} from '../src/State.res.mjs'
 import {backup, parseBackup} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
-const step = (moves) => moves.reduce(advance, 'Open')
-const recommendation = (moves) => nextMove(step(moves))
+const entry = (mine, theirs, date) => ({myMove: mine, move: theirs, note: '', date})
 
-test('forgive once, reset after two clean moves', () => {
-  assert.equal(recommendation(['Defect']), 'Cooperate')
-  assert.deepEqual(step(['Defect', 'Cooperate']), {TAG: 'Grace', _0: 1})
-  assert.equal(step(['Defect', 'Cooperate', 'Cooperate']), 'Open')
+test('CAPRI matches every cell of Murase and Baek Table 3', () => {
+  const triples = ['ccc', 'ccd', 'cdc', 'cdd', 'dcc', 'dcd', 'ddc', 'ddd']
+  const cooperate = new Set([
+    'ccc/ccc', 'ccc/dcc',
+    'ccd/ccc', 'ccd/cdc',
+    'cdc/ccd', 'cdc/dcc',
+    'dcc/ccc', 'dcc/cdc', 'dcc/dcc', 'dcc/ddc',
+    'ddc/dcc', 'ddc/ddc', 'ddc/ddd',
+    'ddd/ddc',
+  ])
+  for (const mine of triples) for (const theirs of triples) {
+    assert.equal(decide({mine, theirs, known: 3}).move, cooperate.has(`${mine}/${theirs}`) ? 'Cooperate' : 'Defect', `${mine}/${theirs}`)
+  }
+  assert.equal(cooperate.size, 14)
 })
 
-test('a second defection triggers a boundary until cooperation returns', () => {
-  assert.equal(recommendation(['Defect', 'Defect']), 'Defect')
-  assert.equal(recommendation(['Defect', 'Defect', 'Defect']), 'Defect')
-  assert.equal(recommendation(['Defect', 'Defect', 'Cooperate']), 'Cooperate')
-  assert.deepEqual(step(['Defect', 'Defect', 'Cooperate']), {TAG: 'Grace', _0: 1})
-  assert.equal(step(['Defect', 'Defect', 'Cooperate', 'Cooperate']), 'Open')
-  assert.equal(recommendation(['Defect', 'Cooperate', 'Defect']), 'Defect')
+test('CAPRI responds to a breach, accepts punishment, and recovers from mutual defection', () => {
+  assert.equal(next([]).move, 'Cooperate')
+  assert.equal(next([entry('Cooperate', 'Defect', '2024-03-01')]).move, 'Defect')
+  assert.equal(next([entry('Cooperate', 'Defect', '2024-03-01'), entry('Defect', 'Cooperate', '2024-03-02')]).move, 'Cooperate')
+  assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
+  assert.equal(decide({mine: 'ddd', theirs: 'ddc', known: 3}).move, 'Cooperate')
 })
 
 test('backup round-trips and rejects incomplete or unrelated files', () => {
@@ -41,18 +49,19 @@ test('interaction dates are valid local dates and backdated moves are replayed i
   assert.equal(normalize('9999-12-31'), null)
   assert.equal(normalize(today()), today())
 
-  const later = {move: 'Defect', note: '', date: '2024-03-02'}
-  const earlier = {move: 'Cooperate', note: '', date: '2024-03-01'}
+  const later = entry('Defect', 'Cooperate', '2024-03-02')
+  const earlier = entry('Cooperate', 'Defect', '2024-03-01')
   assert.deepEqual(orderedEntries([later, earlier]), [earlier, later])
-  assert.deepEqual(phase([later, earlier]), {TAG: 'Grace', _0: 0})
+  assert.equal(next([later, earlier]).move, 'Cooperate')
 })
 
-test('past suggestions follow date order and ignore what you actually did', () => {
-  const first = {move: 'Defect', myMove: 'Defect', note: '', date: '2024-03-01'}
-  const second = {move: 'Defect', myMove: 'Cooperate', note: '', date: '2024-03-02'}
-  const third = {move: 'Cooperate', myMove: undefined, note: '', date: '2024-03-03'}
-  assert.deepEqual(history([third, second, first]).map(item => item.recommended), ['Cooperate', 'Cooperate', 'Defect'])
-  assert.equal(nextMove(phase([third, second, first])), 'Cooperate')
+test('old unpaired entries are retained but block exact advice until three complete rounds', () => {
+  const old = entry(undefined, 'Defect', '2024-03-01')
+  const paired = [entry('Cooperate', 'Cooperate', '2024-03-02'), entry('Cooperate', 'Cooperate', '2024-03-03'), entry('Cooperate', 'Defect', '2024-03-04')]
+  assert.equal(next([old]).move, undefined)
+  assert.equal(next([old, ...paired.slice(0, 2)]).move, undefined)
+  assert.equal(next([old, ...paired]).move, 'Defect')
+  assert.deepEqual(history([paired[2], old, paired[1], paired[0]]).map(item => item.recommended), ['Cooperate', undefined, undefined, undefined])
 })
 
 test('calendar includes leap day and disables future dates', () => {

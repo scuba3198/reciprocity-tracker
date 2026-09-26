@@ -13,6 +13,8 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 
 let moveClass = move => switch move { | State.Cooperate => "cooperate" | State.Defect => "defect" }
 let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
+let decisionClass = (decision: State.decision) => switch decision.move { | Some(move) => moveClass(move) | None => "pending" }
+let decisionLabel = (decision: State.decision) => switch decision.move { | Some(move) => nextLabel(move) | None => "No exact suggestion yet" }
 let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
 
 @react.component
@@ -71,9 +73,10 @@ let make = () => {
   }
 
   let log = (person: State.person, move) => {
-    switch interactionDate->normalizeDate->Nullable.toOption {
-    | None => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
-    | Some(date) => {
+    switch (myMove, interactionDate->normalizeDate->Nullable.toOption) {
+    | (None, _) => ()
+    | (_, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
+    | (Some(_), Some(date)) => {
         let entry: State.entry = {move, myMove, note: note->String.trim, date}
         commit(people->Array.map(item => item.id == person.id
           ? {...item, entries: Array.concat(item.entries, [entry])}
@@ -151,12 +154,12 @@ let make = () => {
         <div className="section-head"><h2>{React.string("People")}</h2><span>{React.string(Int.toString(Array.length(people)))}</span></div>
         <nav ariaLabel="People">
           {people->Array.map(person => {
-            let phase = State.phase(person.entries)
+            let decision = State.next(person.entries)
             let active = switch selected { | Some(current) => current.id == person.id | None => false }
             <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
               <span className="avatar">{React.string(person.name->String.slice(~start=0, ~end=1)->String.toUpperCase)}</span>
-              <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(State.phaseLabel(phase))}</small></span>
-              <span className={"mini-status " ++ moveClass(State.nextMove(phase))}></span>
+              <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
+              <span className={"mini-status " ++ decisionClass(decision)}></span>
             </button>
           })->React.array}
         </nav>
@@ -217,12 +220,11 @@ let make = () => {
         <section className="empty-state">
           <span className="empty-art" ariaHidden=true><span></span><span></span><span></span></span>
           <h1>{React.string("Start with good faith.")}</h1>
-          <p>{React.string("Add a person, then log whether they cooperated or defected after each interaction. You’ll always see the next suggested move.")}</p>
+          <p>{React.string("Add a person, then log what both of you did in each interaction. CAPRI uses the last three paired rounds to suggest your next move.")}</p>
           <a href="#new-person">{React.string("Add your first person ↗")}</a>
         </section>
       | Some(person) => {
-          let phase = State.phase(person.entries)
-          let next = State.nextMove(phase)
+          let decision = State.next(person.entries)
           let count = Array.length(person.entries)
           let history = person.entries->State.history->Belt.Array.reverse
           <div className="detail">
@@ -238,18 +240,18 @@ let make = () => {
                 </section>
               : React.null}
 
-            <section className={"decision-panel " ++ moveClass(next)} ariaLabel="Suggested next move">
+            <section className={"decision-panel " ++ decisionClass(decision)} ariaLabel="Suggested next move">
               <div className="decision-copy">
-                <p className="panel-label">{React.string("YOUR NEXT MOVE")}</p>
-                <h2>{React.string(nextLabel(next))}<span>{React.string(".")}</span></h2>
-                <p>{React.string(State.explanation(phase))}</p>
+                <p className="panel-label">{React.string("CAPRI · YOUR NEXT MOVE")}</p>
+                <h2>{React.string(decisionLabel(decision))}<span>{React.string(".")}</span></h2>
+                <p>{React.string(decision.explanation)}</p>
               </div>
-              <div className="decision-mark" ariaHidden=true>{React.string(next == State.Cooperate ? "C" : "D")}</div>
-              <div className="decision-bottom"><span className="status-indicator"></span><strong>{React.string(State.phaseLabel(phase))}</strong><span>{React.string(switch phase { | State.Grace(0) => "0 of 2 clean moves" | State.Grace(1) => "1 of 2 clean moves" | _ => "" })}</span></div>
+              <div className="decision-mark" ariaHidden=true>{React.string(switch decision.move { | Some(State.Cooperate) => "C" | Some(State.Defect) => "D" | None => "?" })}</div>
+              <div className="decision-bottom"><span className="status-indicator"></span><strong>{React.string(decision.rule)}</strong></div>
             </section>
 
             <section className="record-section">
-              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log their move. The recommendation updates immediately.")}</p></div>
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log both moves from the same interaction.")}</p></div>
               <label className="note-label" htmlFor="interaction-date">{React.string("When did it happen?")}</label>
               <div className="date-row">
                 <div className="date-input-wrap">
@@ -278,16 +280,16 @@ let make = () => {
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
               <div className="own-move-field">
-                <p className="note-label">{React.string("What did you do? (optional)")}</p>
+                <p className="note-label">{React.string("What did you do? (required for CAPRI)")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
-                  <button type_="button" ariaPressed={myMove == None ? #"true" : #"false"} className={myMove == None ? "selected" : ""} onClick={_ => setMyMove(_ => None)}>{React.string("Not recorded")}</button>
                   <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
                   <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
                 </div>
+                {myMove == None ? <p className="own-move-hint">{React.string("Choose your move to enable the log buttons.")}</p> : React.null}
               </div>
               <div className="move-buttons">
-                <button type_="button" className="move-button cooperate" onClick={_ => log(person, State.Cooperate)}><span className="move-glyph">{React.string("C")}</span><span><strong>{React.string("They cooperated")}</strong><small>{React.string("A good move")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
-                <button type_="button" className="move-button defect" onClick={_ => log(person, State.Defect)}><span className="move-glyph">{React.string("D")}</span><span><strong>{React.string("They defected")}</strong><small>{React.string("A broken agreement")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
+                <button type_="button" className="move-button cooperate" disabled={myMove == None} onClick={_ => log(person, State.Cooperate)}><span className="move-glyph">{React.string("C")}</span><span><strong>{React.string("They cooperated")}</strong><small>{React.string("A good move")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
+                <button type_="button" className="move-button defect" disabled={myMove == None} onClick={_ => log(person, State.Defect)}><span className="move-glyph">{React.string("D")}</span><span><strong>{React.string("They defected")}</strong><small>{React.string("A broken agreement")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
               </div>
             </section>
 
@@ -297,9 +299,12 @@ let make = () => {
                 ? <p className="history-empty">{React.string("No moves yet. Start with their next interaction.")}</p>
                 : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
                     let entry = item.entry
-                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("Suggested then: " ++ nextLabel(item.recommended))}{switch entry.myMove {
-                      | None => React.null
-                      | Some(actual) => <span className={actual == item.recommended ? "actual-move" : "actual-move diverged"}>{React.string(" · You: " ++ nextLabel(actual) ++ (actual == item.recommended ? "" : " (different)"))}</span>
+                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("CAPRI before: " ++ switch item.recommended { | Some(move) => nextLabel(move) | None => "unavailable" })}{switch entry.myMove {
+                      | None => <span className="actual-move">{React.string(" · You: not recorded (older entry)")}</span>
+                      | Some(actual) => {
+                          let different = switch item.recommended { | Some(suggested) => actual != suggested | None => false }
+                          <span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(actual) ++ (different ? " (different)" : ""))}</span>
+                        }
                       }}</p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
                   })->React.array}</ol>}
             </section>
