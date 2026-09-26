@@ -34,6 +34,7 @@ let make = () => {
   let (restoreError, setRestoreError) = React.useState(_ => "")
   let (fileInputKey, setFileInputKey) = React.useState(_ => 0)
   let (showInfo, setShowInfo) = React.useState(_ => false)
+  let (mobileMenuOpen, setMobileMenuOpen) = React.useState(_ => false)
   let (theme, setTheme) = React.useState(loadTheme)
 
   let commit = next => {
@@ -144,10 +145,9 @@ let make = () => {
   }
 
   <div className="app-shell">
-    <aside className="sidebar">
+    <aside className={mobileMenuOpen || showInfo ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
-        <span className="brand-symbol" ariaHidden=true><span></span><span></span><span></span></span>
-        <div><strong>{React.string("good faith")}</strong><small>{React.string("THE RECIPROCITY LOG")}</small></div>
+        <strong>{React.string("good faith")}</strong>
       </div>
 
       <div className="sidebar-main">
@@ -156,10 +156,8 @@ let make = () => {
           {people->Array.map(person => {
             let decision = State.next(person.entries)
             let active = switch selected { | Some(current) => current.id == person.id | None => false }
-            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
-              <span className="avatar">{React.string(person.name->String.slice(~start=0, ~end=1)->String.toUpperCase)}</span>
+            <button key={person.id} type_="button" className={active && !showInfo ? "person-link active" : "person-link"} onClick={_ => {setSelectedId(_ => person.id); setShowInfo(_ => false); setMobileMenuOpen(_ => false); setDeleteTargetId(_ => ""); setInteractionDate(_ => today()); setMyMove(_ => None); setCalendarOpen(_ => false); setDateError(_ => ""); scrollTo(0, 0)}}>
               <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
-              <span className={"mini-status " ++ decisionClass(decision)}></span>
             </button>
           })->React.array}
         </nav>
@@ -171,6 +169,8 @@ let make = () => {
             <button type_="submit" ariaLabel="Add person" disabled={newName->String.trim == ""}>{React.string("+")}</button>
           </div>
         </form>
+
+        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen || showInfo} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
 
         <section className="backup-tools" ariaLabel="Backup and restore">
           <button className="backup-toggle" type_="button" ariaExpanded={backupOpen} onClick={_ => setBackupOpen(previous => !previous)}>{React.string("Backup & restore")}<span ariaHidden=true>{React.string(backupOpen ? "−" : "+")}</span></button>
@@ -195,7 +195,7 @@ let make = () => {
               </div>
             : React.null}
         </section>
-        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {setShowInfo(previous => !previous); setCalendarOpen(_ => false); scrollTo(0, 0)}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}<span ariaHidden=true>{React.string(showInfo ? "←" : "↗")}</span></button>
+        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {setShowInfo(previous => !previous); setMobileMenuOpen(_ => false); setCalendarOpen(_ => false); scrollTo(0, 0)}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
           <div className="theme-options" role="group" ariaLabel="Color theme">
@@ -207,21 +207,15 @@ let make = () => {
     </aside>
 
     <main className="main-content">
-      <header className="topbar">
-        <span>{React.string("A clearer way to keep your balance.")}</span>
-        <span className="topbar-right"><span className="live-dot"></span>{React.string("Your personal ledger")}</span>
-      </header>
-
       {if showInfo {
         <Info />
       } else {
       switch selected {
       | None =>
         <section className="empty-state">
-          <span className="empty-art" ariaHidden=true><span></span><span></span><span></span></span>
           <h1>{React.string("Start with good faith.")}</h1>
           <p>{React.string("Add a person, then log what both of you did in each interaction. CAPRI uses the last three paired rounds to suggest your next move.")}</p>
-          <a href="#new-person">{React.string("Add your first person ↗")}</a>
+          <a href="#new-person">{React.string("Add your first person")}</a>
         </section>
       | Some(person) => {
           let decision = State.next(person.entries)
@@ -229,7 +223,7 @@ let make = () => {
           let history = person.entries->State.history->Belt.Array.reverse
           <div className="detail">
             <div className="detail-heading">
-              <div><p className="context-label">{React.string("Relationship ledger")}</p><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
+              <div><h1>{React.string(person.name)}</h1><p className="detail-subtitle">{React.string(count == 0 ? "No interactions logged yet" : Int.toString(count) ++ (count == 1 ? " interaction recorded" : " interactions recorded"))}</p></div>
               <button className="text-button delete-button" type_="button" ariaExpanded={deleteTargetId == person.id} onClick={_ => setDeleteTargetId(_ => deleteTargetId == person.id ? "" : person.id)}>{React.string("Delete person")}</button>
             </div>
 
@@ -242,12 +236,11 @@ let make = () => {
 
             <section className={"decision-panel " ++ decisionClass(decision)} ariaLabel="Suggested next move">
               <div className="decision-copy">
-                <p className="panel-label">{React.string("CAPRI · YOUR NEXT MOVE")}</p>
-                <h2>{React.string(decisionLabel(decision))}<span>{React.string(".")}</span></h2>
+                <h2>{React.string("Next move")}</h2>
+                <p className="decision-action">{React.string(decisionLabel(decision))}</p>
                 <p>{React.string(decision.explanation)}</p>
               </div>
-              <div className="decision-mark" ariaHidden=true>{React.string(switch decision.move { | Some(State.Cooperate) => "C" | Some(State.Defect) => "D" | None => "?" })}</div>
-              <div className="decision-bottom"><span className="status-indicator"></span><strong>{React.string(decision.rule)}</strong></div>
+              <p className="decision-rule">{React.string(decision.rule)}</p>
             </section>
 
             <section className="record-section">
@@ -288,8 +281,8 @@ let make = () => {
                 {myMove == None ? <p className="own-move-hint">{React.string("Choose your move to enable the log buttons.")}</p> : React.null}
               </div>
               <div className="move-buttons">
-                <button type_="button" className="move-button cooperate" disabled={myMove == None} onClick={_ => log(person, State.Cooperate)}><span className="move-glyph">{React.string("C")}</span><span><strong>{React.string("They cooperated")}</strong><small>{React.string("A good move")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
-                <button type_="button" className="move-button defect" disabled={myMove == None} onClick={_ => log(person, State.Defect)}><span className="move-glyph">{React.string("D")}</span><span><strong>{React.string("They defected")}</strong><small>{React.string("A broken agreement")}</small></span><span className="button-arrow">{React.string("↗")}</span></button>
+                <button type_="button" className="move-button cooperate" disabled={myMove == None} onClick={_ => log(person, State.Cooperate)}>{React.string("They cooperated")}</button>
+                <button type_="button" className="move-button defect" disabled={myMove == None} onClick={_ => log(person, State.Defect)}>{React.string("They defected")}</button>
               </div>
             </section>
 

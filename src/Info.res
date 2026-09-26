@@ -39,7 +39,6 @@ let unsuitable: array<scenario> = [
 let make = () =>
   <article className="info-page">
     <header className="info-header">
-      <p className="context-label">{React.string("The thinking behind Good Faith")}</p>
       <h1>{React.string("A simple rule for a complicated thing.")}</h1>
       <p>{React.string("Good Faith now follows CAPRI, the five-rule strategy described by Murase and Baek in 2020. It uses what both people did in the last three rounds to suggest your next move. This is a decision aid you control, not a verdict about a person.")}</p>
     </header>
@@ -95,14 +94,12 @@ let make = () =>
     </section>
 
     <section id="when-to-use" className="info-section scenario-section">
-      <p className="context-label">{React.string("Practical examples")}</p>
       <h2>{React.string("When this can help")}</h2>
       <p>{React.string("The best fit is one recurring, low-stakes agreement between people with similar freedom to choose. Both know what counts as keeping it, and stepping back from your own optional contribution would be safe and fair. These are examples for using a decision aid, not situations validated by the cited studies.")}</p>
       <ul className="scenario-list useful">{useful->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
     </section>
 
     <section id="when-not-to-use" className="info-section scenario-section info-limits">
-      <p className="context-label">{React.string("Hard limits")}</p>
       <h2>{React.string("When not to use it")}</h2>
       <p>{React.string("These situations make the two-choice model misleading, unfair, or unsafe. CAPRI’s suggested boundary is never an instruction to retaliate or to stay in danger.")}</p>
       <ul className="scenario-list unsuitable">{unsuitable->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
