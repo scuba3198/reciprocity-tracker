@@ -50,9 +50,9 @@ export function subscribe(callback) {
   let previousUserId
   const {data} = client.auth.onAuthStateChange((_event, session) => {
     const userId = session?.user.id ?? ''
-    if (userId !== previousUserId) {
+    if (userId !== previousUserId || _event === 'PASSWORD_RECOVERY') {
       previousUserId = userId
-      callback(userId, session?.user.email ?? '')
+      callback(userId, session?.user.email ?? '', _event)
     }
   })
   return () => data.subscription.unsubscribe()
@@ -63,9 +63,15 @@ export async function auth(action, email, password) {
     ? await client.auth.signUp({email, password})
     : action === 'signin'
       ? await client.auth.signInWithPassword({email, password})
-      : await client.auth.signOut()
+      : action === 'reset'
+        ? await client.auth.resetPasswordForEmail(email, {redirectTo: 'https://scuba3198.github.io/reciprocity-tracker/'})
+        : action === 'update-password'
+          ? await client.auth.updateUser({password})
+          : await client.auth.signOut()
   if (result.error) throw new Error(result.error.message)
   if (action === 'signup' && !result.data.session) return 'Check your email to confirm your account.'
+  if (action === 'reset') return 'If that email has an account, a password reset link has been sent.'
+  if (action === 'update-password') return 'Your password has been updated.'
   return action === 'signout' ? 'Signed out.' : 'Signed in.'
 }
 

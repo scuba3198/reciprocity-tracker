@@ -1,7 +1,7 @@
 type calendarDay = {date: string, label: string, accessible: string, disabled: bool}
 type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
 @module("./Supabase.js") external auth: (string, string, string) => promise<string> = "auth"
-@module("./Supabase.js") external subscribeAuth: ((string, string) => unit) => (unit => unit) = "subscribe"
+@module("./Supabase.js") external subscribeAuth: ((string, string, string) => unit) => (unit => unit) = "subscribe"
 @module("./Supabase.js") external loadOrMigrate: (string, string) => promise<string> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
 @module("./InteractionDate.js") external today: unit => string = "today"
@@ -55,6 +55,7 @@ let make = () => {
   let (authBusy, setAuthBusy) = React.useState(_ => false)
   let (authError, setAuthError) = React.useState(_ => "")
   let (authMessage, setAuthMessage) = React.useState(_ => "")
+  let (passwordRecovery, setPasswordRecovery) = React.useState(_ => false)
   let (syncError, setSyncError) = React.useState(_ => "")
   let (syncing, setSyncing) = React.useState(_ => false)
   let (showInfo, setShowInfo) = React.useState(_ => false)
@@ -69,7 +70,9 @@ let make = () => {
   let (theme, setTheme) = React.useState(loadTheme)
 
   React.useEffect0(() => {
-    let unsubscribe = subscribeAuth((id, accountEmail) => {
+    let unsubscribe = subscribeAuth((id, accountEmail, event) => {
+      if event == "PASSWORD_RECOVERY" {setPasswordRecovery(_ => true); setPassword(_ => "")}
+      if event == "SIGNED_OUT" {setPasswordRecovery(_ => false)}
       setAuthReady(_ => true)
       setUserId(_ => id)
       setEmail(_ => accountEmail)
@@ -136,14 +139,22 @@ let make = () => {
   }
 
   let runAuth = (action: string) => {
-    if action == "signup" && (email->String.trim == "" || String.length(password) < 8) {
-      setAuthError(_ => "Enter your email and a password with at least 8 characters.")
+    if (action == "signup" || action == "update-password") && String.length(password) < 8 {
+      setAuthError(_ => "Enter a password with at least 8 characters.")
+    } else if (action == "signup" || action == "signin" || action == "reset") && email->String.trim == "" {
+      setAuthError(_ => "Enter your email address first.")
     } else {
       setAuthBusy(_ => true)
       setAuthError(_ => "")
       setAuthMessage(_ => "")
       auth(action, email->String.trim, password)
-      ->Promise.then(message => {setAuthMessage(_ => message); setPassword(_ => ""); setAuthBusy(_ => false); Promise.resolve(())})
+      ->Promise.then(message => {
+        setAuthMessage(_ => message)
+        setPassword(_ => "")
+        if action == "update-password" {setPasswordRecovery(_ => false)}
+        setAuthBusy(_ => false)
+        Promise.resolve(())
+      })
       ->Promise.catch(error => {
         let message = switch error->JsExn.fromException->Option.flatMap(JsExn.message) {
         | Some(message) => message
@@ -398,7 +409,13 @@ let make = () => {
 
         <section className="account-tools" ariaLabel="Cloud account">
           <h2>{React.string("Cloud sync")}</h2>
-          {userId != ""
+          {passwordRecovery
+            ? <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("update-password")}}>
+                <label htmlFor="new-account-password">{React.string("New password (at least 8 characters)")}</label>
+                <input id="new-account-password" type_="password" autoComplete="new-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
+                <button type_="submit" disabled={authBusy}>{React.string(authBusy ? "Updating…" : "Update password")}</button>
+              </form>
+            : userId != ""
             ? <div className="account-body">
                 <p>{React.string(email)}</p>
                 <p>{React.string(syncing ? "Saving changes…" : cloudReady ? "Ledger synced to your account." : "Loading your ledger…")}</p>
@@ -411,6 +428,7 @@ let make = () => {
                 <input id="account-password" type_="password" autoComplete="current-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
                 <button type_="submit" disabled={authBusy}>{React.string("Sign in")}</button>
                 <button type_="button" disabled={authBusy} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
+                <button type_="button" disabled={authBusy} onClick={_ => runAuth("reset")}>{React.string("Forgot password?")}</button>
               </form>}
           {authError != "" ? <p role="alert" className="account-error">{React.string(authError)}</p> : React.null}
           {authMessage != "" ? <p role="status" className="account-message">{React.string(authMessage)}</p> : React.null}
