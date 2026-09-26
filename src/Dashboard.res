@@ -57,15 +57,11 @@ let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAd
         : <div className="dashboard-people-rail">{people->Array.map(person => {
             let decision = State.next(person.entries)
             let count = Array.length(person.entries)
-            let history = State.history(person.entries)
             let points = trendPoints(person.entries)
-            let latestNote = history->Belt.Array.reverse->Belt.Array.getBy(item => item.entry.note != "")->Option.map(item => item.entry.note)->Option.getOr("")
             let trendColor = decision.difference <= State.tolerance ? "#3e9366" : "#c76e55"
             <button key={person.id} type_="button" className="dashboard-person-card" onClick={_ => onSelect(person)} ariaLabel={"Open " ++ person.name}>
               <span className="dashboard-avatar" ariaHidden=true>{React.string(initials(person.name))}</span>
-              <span className="dashboard-person-content"><span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
-                {latestNote == "" ? React.null : <small className="dashboard-person-note">{React.string("Last: " ++ latestNote)}</small>}
-              </span>
+              <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
               {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Cumulative difference over " ++ Int.toString(count) ++ " recorded interactions"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               <span className={decision.difference > State.tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
             </button>
