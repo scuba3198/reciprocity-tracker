@@ -11,6 +11,24 @@ let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (cou
 type recentItem = {person: State.person, entry: State.entry}
 @send external sortRecent: (array<recentItem>, (recentItem, recentItem) => float) => array<recentItem> = "sort"
 
+let trendPoints = (entries: array<State.entry>) =>
+  Array.concat([0], entries->State.history->Array.map(item =>
+    item.differenceBefore + (item.entry.move == State.Defect ? 1 : 0) - (item.entry.myMove == State.Defect ? 1 : 0)
+  ))
+
+let trendPath = (points: array<int>) => {
+  let length = Array.length(points)
+  let first = points->Array.get(0)->Option.getOr(0)
+  let lower = points->Array.reduce(first, (a, b) => a < b ? a : b)
+  let upper = points->Array.reduce(first, (a, b) => a > b ? a : b)
+  let span = upper - lower > 1 ? upper - lower : 1
+  points->Array.mapWithIndex((point, index) => {
+    let x = length == 1 ? 30 : index * 60 / (length - 1)
+    let y = 20 - (point - lower) * 16 / span
+    Int.toString(x) ++ "," ++ Int.toString(y)
+  })->Array.join(" ")
+}
+
 @react.component
 let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAdd: unit => unit) => {
   let recent: array<recentItem> = people->Array.reduce([], (items, person) => {
@@ -39,10 +57,17 @@ let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAd
         : <div className="dashboard-people-rail">{people->Array.map(person => {
             let decision = State.next(person.entries)
             let count = Array.length(person.entries)
+            let history = State.history(person.entries)
+            let points = trendPoints(person.entries)
+            let latestNote = history->Belt.Array.reverse->Belt.Array.getBy(item => item.entry.note != "")->Option.map(item => item.entry.note)->Option.getOr("")
+            let trendColor = decision.difference <= State.tolerance ? "#3e9366" : "#c76e55"
             <button key={person.id} type_="button" className="dashboard-person-card" onClick={_ => onSelect(person)} ariaLabel={"Open " ++ person.name}>
               <span className="dashboard-avatar" ariaHidden=true>{React.string(initials(person.name))}</span>
-              <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
-              <span className="dashboard-difference"><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
+              <span className="dashboard-person-content"><span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
+                {latestNote == "" ? React.null : <small className="dashboard-person-note">{React.string("Last: " ++ latestNote)}</small>}
+              </span>
+              {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Cumulative difference over " ++ Int.toString(count) ++ " recorded interactions"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+              <span className={decision.difference > State.tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
             </button>
           })->React.array}</div>}
     </section>

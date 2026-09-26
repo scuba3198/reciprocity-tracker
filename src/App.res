@@ -41,6 +41,9 @@ let make = () => {
   let (showInsights, setShowInsights) = React.useState(_ => false)
   let (addOpen, setAddOpen) = React.useState(_ => false)
   let (mobileMenuOpen, setMobileMenuOpen) = React.useState(_ => false)
+  let (sidebarCollapsed, setSidebarCollapsed) = React.useState(_ => false)
+  let (sidebarSettingsOpen, setSidebarSettingsOpen) = React.useState(_ => false)
+  let (searchQuery, setSearchQuery) = React.useState(_ => "")
   let (theme, setTheme) = React.useState(loadTheme)
 
   let commit = next => {
@@ -224,48 +227,34 @@ let make = () => {
     setBackupOpen(_ => false)
   }
 
-  <div className="app-shell">
+  <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
     <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
         <button type_="button" onClick={_ => openHome()}>{React.string("good faith")}</button>
+        <button className="sidebar-collapse" type_="button" ariaLabel={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} ariaExpanded={!sidebarCollapsed} onClick={_ => setSidebarCollapsed(previous => !previous)}>{React.string(sidebarCollapsed ? "›" : "‹")}</button>
       </div>
 
       <div id="mobile-settings-panel" className="sidebar-main">
         <div className="mobile-settings-header"><h2>{React.string("Settings")}</h2><button type_="button" onClick={_ => setMobileMenuOpen(_ => false)}>{React.string("Close")}</button></div>
-        <nav className="primary-nav" ariaLabel="Main navigation">
-          <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
-          <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
-          <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
-        </nav>
-        <div className="section-head"><h2>{React.string("People")}</h2><span>{React.string(Int.toString(Array.length(people)))}</span></div>
-        <nav ariaLabel="People">
-          {people->Array.map(person => {
-            let decision = State.next(person.entries)
-            let active = switch selected { | Some(current) => current.id == person.id | None => false }
-            <div key={person.id} className="person-item">
-              <button type_="button" className={active && !showDashboard && !showInsights && !showInfo ? "person-link active" : "person-link"} onClick={_ => openPerson(person)}>
-                <span className="person-link-text"><strong>{React.string(person.name)}</strong><small>{React.string(decision.rule)}</small></span>
-              </button>
-              <div className="person-actions">
-                <button type_="button" ariaLabel={"Edit name for " ++ person.name} onClick={_ => startEdit(person)}>{React.string("Edit")}</button>
-                <button type_="button" ariaLabel={"Delete " ++ person.name} onClick={_ => startDelete(person)}>{React.string("Delete")}</button>
+        <div className="sidebar-search">
+          <label htmlFor="person-search">{React.string("Search people")}</label>
+          <div className="sidebar-search-field"><span ariaHidden=true>{React.string("⌕")}</span><input id="person-search" type_="search" placeholder="Search people..." value={searchQuery} onChange={event => setSearchQuery(_ => JsxEvent.Form.target(event)["value"])} /></div>
+          {searchQuery->String.trim != ""
+            ? <div className="sidebar-search-results" ariaLabel="Search results">
+                {people->Array.filter(person => person.name->String.toLowerCase->String.includes(searchQuery->String.trim->String.toLowerCase))->Array.map(person =>
+                  <button key={person.id} type_="button" onClick={_ => {setSearchQuery(_ => ""); openPerson(person)}}>{React.string(person.name)}</button>
+                )->React.array}
               </div>
-            </div>
-          })->React.array}
+            : React.null}
+        </div>
+        <nav className="primary-nav" ariaLabel="Main navigation">
+          <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("♧")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
+          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("▤")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
+          <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("▥")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
         </nav>
-
-        <form className="add-form" onSubmit={addPerson}>
-          <label htmlFor="new-person">{React.string("Add someone")}</label>
-          <div className="add-row">
-            <input id="new-person" type_="text" placeholder="Their name" value={newName} maxLength=60 onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
-            <button type_="submit" ariaLabel="Add person" disabled={newName->String.trim == ""}>{React.string("+")}</button>
-          </div>
-        </form>
-
-        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
 
         <section className="backup-tools" ariaLabel="Backup and restore">
-          <button className="backup-toggle" type_="button" ariaExpanded={backupOpen} onClick={_ => setBackupOpen(previous => !previous)}>{React.string("Backup & restore")}<span ariaHidden=true>{React.string(backupOpen ? "−" : "+")}</span></button>
+          <button className="backup-toggle" title="Backup & restore" type_="button" ariaExpanded={backupOpen} onClick={_ => {setSidebarCollapsed(_ => false); setBackupOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("⇩")}</span><span className="sidebar-nav-label">{React.string("Backup & restore")}</span></button>
           {backupOpen
             ? <div className="backup-body">
                 <p>{React.string("Save a copy of your ledger, or restore one from a JSON file.")}</p>
@@ -287,6 +276,19 @@ let make = () => {
               </div>
             : React.null}
         </section>
+        <button className="sidebar-settings-toggle" title="Settings" type_="button" ariaExpanded={sidebarSettingsOpen} onClick={_ => {setSidebarCollapsed(_ => false); setSidebarSettingsOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{React.string("⚙")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
+
+        <form className="add-form" onSubmit={addPerson}>
+          <label htmlFor="new-person">{React.string("Quick add")}</label>
+          <div className="add-row">
+            <input id="new-person" type_="text" placeholder="Their name" value={newName} maxLength=60 onChange={event => setNewName(_ => JsxEvent.Form.target(event)["value"])} />
+            <button type_="submit" ariaLabel="Add person" disabled={newName->String.trim == ""}>{React.string("+")}</button>
+          </div>
+        </form>
+
+        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
+
+        <div className={sidebarSettingsOpen ? "sidebar-settings-panel open" : "sidebar-settings-panel"}>
         <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {if showInfo {leaveInfo()} else {setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger"); setShowInfo(_ => true); setShowDashboard(_ => false); setShowInsights(_ => false); setMobileMenuOpen(_ => false); setCalendarOpen(_ => false); scrollTo(0, 0)}}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
@@ -294,6 +296,8 @@ let make = () => {
             {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
           </div>
         </section>
+        </div>
+        <div className="sidebar-quote"><p>{React.string("Patterns are worth noticing. People are more than patterns.")}</p></div>
       </div>
       <p className="sidebar-foot">{React.string("Private to this browser · No account needed")}</p>
     </aside>

@@ -161,6 +161,7 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .dashboard-cta { border-radius: 8px; }
 .dashboard-person-card { background: var(--surface); }
 .dashboard-difference strong { color: var(--green); }
+.dashboard-difference.caution strong { color: var(--orange); }
 .dashboard-activity-mark.cooperate { color: var(--green); border-color: var(--green); }
 .dashboard-activity-mark.defect { color: var(--orange); border-color: var(--orange); }
 .dashboard-section-heading h2 { color: var(--ink); }
@@ -220,4 +221,59 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
   .date-row button:not(.calendar-toggle) { flex: 1; }
   .own-move-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .own-move-options button, .own-move-options button:hover, .own-move-options button.selected { min-width: 0; }
+}
+
+/* Desktop navigation follows the reference: search, sections, quick add, and a compact rail. */
+@media (min-width: 761px) {
+  .app-shell { grid-template-columns: 274px minmax(0, 1fr); transition: grid-template-columns .18s ease; }
+  .app-shell.sidebar-collapsed { grid-template-columns: 68px minmax(0, 1fr); }
+  .sidebar { padding: 25px 15px 17px; }
+  .brand { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 0 7px 30px; }
+  .brand button:first-child { white-space: nowrap; font-size: 28px; }
+  .brand .sidebar-collapse { display: grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font: 22px/1 Arial, sans-serif; }
+  .brand .sidebar-collapse:hover { background: var(--surface-soft); color: var(--ink); }
+  .sidebar-main { display: flex; flex-direction: column; min-height: 0; scrollbar-width: thin; }
+  .sidebar-search { position: relative; padding: 0 5px 12px; }
+  .sidebar-search label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sidebar-search-field { display: flex; align-items: center; gap: 7px; height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+  .sidebar-search-field span { font-size: 21px; line-height: 1; }
+  .sidebar-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 12px; }
+  .sidebar-search-field:focus-within { outline: 2px solid #a9dcaf; outline-offset: 1px; }
+  .sidebar-search-results { position: absolute; z-index: 5; top: 43px; left: 5px; right: 5px; max-height: 220px; overflow-y: auto; padding: 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 20px #0003; }
+  .sidebar-search-results button { display: block; width: 100%; padding: 9px 8px; border: 0; border-radius: 5px; background: transparent; text-align: left; font-size: 12px; }
+  .sidebar-search-results button:hover { background: var(--surface-soft); }
+  .primary-nav { gap: 2px; padding: 0; border: 0; }
+  .primary-nav button, .backup-toggle, .sidebar-settings-toggle { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 43px; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; text-align: left; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .primary-nav button:hover, .primary-nav button.active, .backup-toggle:hover, .sidebar-settings-toggle:hover, .sidebar-settings-toggle[aria-expanded="true"] { background: var(--surface-soft); color: var(--ink); }
+  .sidebar-nav-icon { display: grid; place-items: center; flex: none; width: 21px; height: 21px; color: currentColor; font: 18px/1 Arial, sans-serif; }
+  .sidebar-nav-label { white-space: nowrap; }
+  .backup-tools { margin: 0; padding: 0; border: 0; }
+  .backup-toggle { justify-content: flex-start; }
+  .backup-body { margin: 3px 6px 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .sidebar-settings-panel { display: none; }
+  .sidebar-settings-panel.open { display: block; }
+  .add-form { margin: 27px 5px 18px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .add-form label { margin-bottom: 9px; color: var(--muted); font-size: 11px; }
+  .add-row, .add-row:focus-within { border-radius: 7px; }
+  .add-row button, .add-row button:disabled { background: transparent; color: var(--green); }
+  .sidebar-settings-panel .info-nav { margin-top: 5px; }
+  .sidebar-settings-panel .theme-tools { margin: 13px 7px 0; }
+  .sidebar-quote { display: flex; align-items: flex-start; min-height: 145px; margin: auto 5px 0; padding: 17px 15px; border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg,#122c23c7,#071911ad), url("./assets/forest-hero.png") center / cover; }
+  .sidebar-quote p { max-width: 18ch; margin: 0; color: #f1f3eb; font: 500 18px/1.18 Newsreader, Georgia, serif; }
+  .sidebar-foot { margin: 15px 7px 0; }
+  .sidebar-collapsed .sidebar { padding-right: 8px; padding-left: 8px; }
+  .sidebar-collapsed .brand { justify-content: center; padding: 0 0 25px; }
+  .sidebar-collapsed .brand button:first-child, .sidebar-collapsed .sidebar-search, .sidebar-collapsed .sidebar-nav-label, .sidebar-collapsed .add-form, .sidebar-collapsed .sidebar-quote, .sidebar-collapsed .sidebar-foot, .sidebar-collapsed .backup-body, .sidebar-collapsed .sidebar-settings-panel { display: none; }
+  .sidebar-collapsed .primary-nav button, .sidebar-collapsed .backup-toggle, .sidebar-collapsed .sidebar-settings-toggle { justify-content: center; padding: 8px 0; }
+}
+
+@media (max-width: 760px) {
+  .sidebar-collapse, .sidebar-search, .sidebar-settings-toggle, .sidebar-quote { display: none; }
+  .sidebar.extras-open .backup-tools { display: block; margin: 5px 0 0; border-top: 1px solid var(--line); }
+  .sidebar.extras-open .backup-toggle { min-height: 44px; padding: 8px 0; }
+  .sidebar.extras-open .backup-toggle .sidebar-nav-icon { width: 20px; margin-right: 10px; }
+  .sidebar.extras-open .backup-toggle::after { content: '+'; margin-left: auto; font-size: 20px; font-weight: 400; }
+  .sidebar.extras-open .backup-toggle[aria-expanded="true"]::after { content: '−'; }
+  .sidebar.extras-open .sidebar-settings-panel { display: block; }
+  .sidebar.extras-open .info-nav { margin-top: 6px; }
 }
