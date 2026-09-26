@@ -1,33 +1,35 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {decide, next, orderedEntries, history} from '../src/State.res.mjs'
-import {backup, parseBackup} from '../src/Storage.res.mjs'
+import {next, orderedEntries, history} from '../src/State.res.mjs'
+import {backup, load, parseBackup} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
 const entry = (mine, theirs, date) => ({myMove: mine, move: theirs, note: '', date})
 
-test('CAPRI matches every cell of Murase and Baek Table 3', () => {
-  const triples = ['ccc', 'ccd', 'cdc', 'cdd', 'dcc', 'dcd', 'ddc', 'ddd']
-  const cooperate = new Set([
-    'ccc/ccc', 'ccc/dcc',
-    'ccd/ccc', 'ccd/cdc',
-    'cdc/ccd', 'cdc/dcc',
-    'dcc/ccc', 'dcc/cdc', 'dcc/dcc', 'dcc/ddc',
-    'ddc/dcc', 'ddc/ddc', 'ddc/ddd',
-    'ddd/ddc',
-  ])
-  for (const mine of triples) for (const theirs of triples) {
-    assert.equal(decide({mine, theirs, known: 3}).move, cooperate.has(`${mine}/${theirs}`) ? 'Cooperate' : 'Defect', `${mine}/${theirs}`)
-  }
-  assert.equal(cooperate.size, 14)
+test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
+  const breach = entry('Cooperate', 'Defect', '2024-03-01')
+  const repeated = entry('Cooperate', 'Defect', '2024-03-02')
+  const repair = entry('Defect', 'Cooperate', '2024-03-03')
+  assert.deepEqual([next([]).move, next([breach]).move, next([breach, repeated]).move, next([breach, repeated, repair]).move],
+    ['Cooperate', 'Cooperate', 'Defect', 'Cooperate'])
+  assert.equal(next([breach, repeated]).difference, 2)
+  assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
+  assert.equal(next([entry('Defect', 'Defect', '2024-03-01')]).difference, 0)
 })
 
-test('CAPRI responds to a breach, accepts punishment, and recovers from mutual defection', () => {
-  assert.equal(next([]).move, 'Cooperate')
-  assert.equal(next([entry('Cooperate', 'Defect', '2024-03-01')]).move, 'Defect')
-  assert.equal(next([entry('Cooperate', 'Defect', '2024-03-01'), entry('Defect', 'Cooperate', '2024-03-02')]).move, 'Cooperate')
-  assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
-  assert.equal(decide({mine: 'ddd', theirs: 'ddc', known: 3}).move, 'Cooperate')
+test('CURE remembers the full history and recomputes the advice before each round', () => {
+  const rounds = [
+    entry('Cooperate', 'Defect', '2024-03-01'),
+    entry('Cooperate', 'Defect', '2024-03-02'),
+    entry('Defect', 'Cooperate', '2024-03-03'),
+    entry('Cooperate', 'Cooperate', '2024-03-04'),
+    entry('Cooperate', 'Defect', '2024-03-05'),
+    entry('Cooperate', 'Cooperate', '2024-03-06'),
+  ]
+  assert.deepEqual(history(rounds).map(item => [item.differenceBefore, item.recommended]),
+    [[0, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect'], [1, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect']])
+  assert.equal(next(rounds).move, 'Defect')
+  assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
 })
 
 test('backup round-trips and rejects incomplete or unrelated files', () => {
@@ -35,12 +37,23 @@ test('backup round-trips and rejects incomplete or unrelated files', () => {
   assert.deepEqual(parseBackup(backup(people)), {TAG: 'Ok', _0: people})
   assert.equal(parseBackup('{broken').TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'other', version: 1, people})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 2, people: [{...people[0], entries: [{move: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 3, people: [{...people[0], entries: [{move: 'Defect', myMove: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
-  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 2, people: [people[0], people[0]]})).TAG, 'Error')
-  const legacy = {format: 'good-faith-backup', version: 1, people: [{id: 'old', name: 'Older backup', entries: [{move: 'Cooperate', note: '', at: new Date(2024, 1, 29, 12).getTime()}]}]}
-  assert.equal(parseBackup(JSON.stringify(legacy))._0[0].entries[0].date, '2024-02-29')
-  assert.equal(parseBackup(JSON.stringify(legacy))._0[0].entries[0].myMove, undefined)
+  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [{...people[0], entries: [{move: 'Other', myMove: 'Cooperate', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
+  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [{...people[0], entries: [{move: 'Defect', myMove: 'Other', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
+  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [people[0], people[0]]})).TAG, 'Error')
+  assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 3, people})).TAG, 'Error')
+})
+
+test('CURE starts a fresh ledger and loads only its new storage key', () => {
+  const people = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01')]}]
+  const saved = {'good-faith.people.v1': JSON.stringify(people)}
+  globalThis.localStorage = {getItem: key => saved[key] ?? null}
+  try {
+    assert.deepEqual(load(), [])
+    saved['good-faith.people.v2'] = JSON.stringify(people)
+    assert.deepEqual(load(), people)
+  } finally {
+    delete globalThis.localStorage
+  }
 })
 
 test('interaction dates are valid local dates and backdated moves are replayed in date order', () => {
@@ -53,15 +66,6 @@ test('interaction dates are valid local dates and backdated moves are replayed i
   const earlier = entry('Cooperate', 'Defect', '2024-03-01')
   assert.deepEqual(orderedEntries([later, earlier]), [earlier, later])
   assert.equal(next([later, earlier]).move, 'Cooperate')
-})
-
-test('old unpaired entries are retained but block exact advice until three complete rounds', () => {
-  const old = entry(undefined, 'Defect', '2024-03-01')
-  const paired = [entry('Cooperate', 'Cooperate', '2024-03-02'), entry('Cooperate', 'Cooperate', '2024-03-03'), entry('Cooperate', 'Defect', '2024-03-04')]
-  assert.equal(next([old]).move, undefined)
-  assert.equal(next([old, ...paired.slice(0, 2)]).move, undefined)
-  assert.equal(next([old, ...paired]).move, 'Defect')
-  assert.deepEqual(history([paired[2], old, paired[1], paired[0]]).map(item => item.recommended), ['Cooperate', undefined, undefined, undefined])
 })
 
 test('calendar includes leap day and disables future dates', () => {

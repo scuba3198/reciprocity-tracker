@@ -13,8 +13,8 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 
 let moveClass = move => switch move { | State.Cooperate => "cooperate" | State.Defect => "defect" }
 let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
-let decisionClass = (decision: State.decision) => switch decision.move { | Some(move) => moveClass(move) | None => "pending" }
-let decisionLabel = (decision: State.decision) => switch decision.move { | Some(move) => nextLabel(move) | None => "No exact suggestion yet" }
+let decisionClass = (decision: State.decision) => moveClass(decision.move)
+let decisionLabel = (decision: State.decision) => nextLabel(decision.move)
 let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
 
 @react.component
@@ -79,8 +79,8 @@ let make = () => {
     switch (myMove, interactionDate->normalizeDate->Nullable.toOption) {
     | (None, _) => ()
     | (_, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
-    | (Some(_), Some(date)) => {
-        let entry: State.entry = {move, myMove, note: note->String.trim, date}
+    | (Some(mine), Some(date)) => {
+        let entry: State.entry = {move, myMove: mine, note: note->String.trim, date}
         commit(people->Array.map(item => item.id == person.id
           ? {...item, entries: Array.concat(item.entries, [entry])}
           : item))
@@ -252,7 +252,7 @@ let make = () => {
       | None =>
         <section className="empty-state">
           <h1>{React.string("Start with good faith.")}</h1>
-          <p>{React.string("Add a person, then log what both of you did in each interaction. CAPRI uses the last three paired rounds to suggest your next move.")}</p>
+          <p>{React.string("Add a person, then log what both of you did in each interaction. CURE compares your cumulative defections with theirs to suggest your next move.")}</p>
           <a href="#new-person">{React.string("Add your first person")}</a>
         </section>
       | Some(person) => {
@@ -323,7 +323,7 @@ let make = () => {
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
               <div className="own-move-field">
-                <p className="note-label">{React.string("What did you do? (required for CAPRI)")}</p>
+                <p className="note-label">{React.string("What did you do? (required for CURE)")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
                   <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
                   <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
@@ -342,13 +342,8 @@ let make = () => {
                 ? <p className="history-empty">{React.string("No moves yet. Start with their next interaction.")}</p>
                 : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
                     let entry = item.entry
-                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("CAPRI before: " ++ switch item.recommended { | Some(move) => nextLabel(move) | None => "unavailable" })}{switch entry.myMove {
-                      | None => <span className="actual-move">{React.string(" · You: not recorded (older entry)")}</span>
-                      | Some(actual) => {
-                          let different = switch item.recommended { | Some(suggested) => actual != suggested | None => false }
-                          <span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(actual) ++ (different ? " (different)" : ""))}</span>
-                        }
-                      }}</p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
+                    let different = entry.myMove != item.recommended
+                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}<span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span></p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
                   })->React.array}</ol>}
             </section>
           </div>

@@ -40,7 +40,7 @@ let make = () =>
   <article className="info-page">
     <header className="info-header">
       <h1>{React.string("A simple rule for a complicated thing.")}</h1>
-      <p>{React.string("Good Faith now follows CAPRI, the five-rule strategy described by Murase and Baek in 2020. It uses what both people did in the last three rounds to suggest your next move. This is a decision aid you control, not a verdict about a person.")}</p>
+      <p>{React.string("Good Faith now follows CURE (cumulative reciprocity), based on Li et al. (2022). It counts the running imbalance in cooperation across all recorded rounds and suggests a move for the next round. This is a decision aid you control, not a verdict about a person.")}</p>
     </header>
 
     <nav className="info-jump" ariaLabel="On this page">
@@ -50,47 +50,28 @@ let make = () =>
 
     <section className="info-section">
       <h2>{React.string("The game-theory idea")}</h2>
-      <p>{React.string("The mathematical setting is the repeated Prisoner’s Dilemma. In each round, two players each choose cooperation (C) or defection (D). Defection can pay immediately, while continued mutual cooperation can be better for both than continued mutual defection.")}</p>
-      <div className="payoff-example">
-        <div><strong>{React.string("C + C")}</strong><span>{React.string("3 points each")}</span></div>
-        <div><strong>{React.string("C + D")}</strong><span>{React.string("0 for C, 4 for D")}</span></div>
-        <div><strong>{React.string("D + D")}</strong><span>{React.string("1 point each")}</span></div>
-      </div>
-      <p className="info-caption">{React.string("These are the illustrative payoffs in Murase and Baek’s Figure 2, not scores for real relationships. CAPRI is a ‘friendly rival’: it aims to maintain mutual cooperation while resisting repeated exploitation in the game model.")}</p>
+      <p>{React.string("CURE is a strategy for the repeated Prisoner’s Dilemma, a mathematical game where two players repeatedly choose cooperation (C) or defection (D). It keeps the full history’s imbalance in one running count instead of looking only at the latest round.")}</p>
     </section>
 
     <section className="info-section">
       <h2>{React.string("The exact rule in this app")}</h2>
-      <p>{React.string("CAPRI reads three consecutive rounds of your C/D choices and their C/D choices. The app implements the 64 cases in Table 3 of the paper. It starts a new ledger by assuming an initial run of mutual cooperation (C/C, C/C, C/C), then replaces those assumed rounds as you record real ones.")}</p>
-      <div className="info-table-wrap">
-        <table className="info-table">
-          <thead><tr><th scope="col">{React.string("Rule")}</th><th scope="col">{React.string("What it means")}</th><th scope="col">{React.string("Typical next move")}</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">{React.string("C · Cooperate")}</th><td>{React.string("Continue when both have cooperated")}</td><td><strong>{React.string("C")}</strong></td></tr>
-            <tr><th scope="row">{React.string("A · Accept")}</th><td>{React.string("If you broke mutual cooperation, accept their response")}</td><td><strong>{React.string("C")}</strong></td></tr>
-            <tr><th scope="row">{React.string("P · Punish")}</th><td>{React.string("Answer their breach once, then return when they accept it")}</td><td><strong>{React.string("D, then C")}</strong></td></tr>
-            <tr><th scope="row">{React.string("R · Recover")}</th><td>{React.string("Use a cooperative move to escape mutual defection")}</td><td><strong>{React.string("C")}</strong></td></tr>
-            <tr><th scope="row">{React.string("I · Defect otherwise")}</th><td>{React.string("Protect yourself in all remaining patterns")}</td><td><strong>{React.string("D")}</strong></td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p>{React.string("Before each round, d = their cumulative D count − your cumulative D count. With Δ = 1, cooperate (C) if d ≤ Δ; otherwise defect (D). A D by them when you chose C raises d by 1. A D by you when they chose C lowers d by 1. C/C and D/D leave d unchanged. The count never decays within a person's history, so earlier unequal defections continue to matter. The paper explores several thresholds; this app fixes Δ = 1, a common setting in its simulations. Its human-behavior comparison uses Δ = 3.")}</p>
       <div className="info-examples">
-        <p><strong>{React.string("Their single D:")}</strong>{React.string(" From mutual cooperation, their D makes CAPRI suggest D once. If they accept that response by cooperating, CAPRI returns to C.")}</p>
-        <p><strong>{React.string("Your single D:")}</strong>{React.string(" From mutual cooperation, your D makes CAPRI suggest C next: accept their response and help restore cooperation.")}</p>
+        <p><strong>{React.string("Their D while you C:")}</strong>{React.string(" d rises from 0 to 1. With Δ = 1, you still cooperate; if they keep defecting while you cooperate, d eventually exceeds 1 and the rule suggests D.")}</p>
+        <p><strong>{React.string("Your D while they C:")}</strong>{React.string(" d falls by 1, reflecting that your defection puts the imbalance in your favor. This count is mechanical; it does not decide what is fair in a real situation.")}</p>
       </div>
-      <p>{React.string("Record both moves from the same round; both are required for new entries. Backdated entries are replayed in date order. History recomputes what CAPRI would have suggested before each round; it does not preserve advice from the old app. Older entries without your move stay visible, but CAPRI cannot infer it. After such a gap, the app waits for three complete paired rounds before giving another exact suggestion. ‘Withhold cooperation’ means an appropriate boundary, not harm or revenge.")}</p>
+      <p>{React.string("Record both moves from the same round; both are required for new entries. Backdated entries are replayed in date order, and the displayed history suggestion is recomputed from the recorded moves. CURE differs from CAPRI: CURE tracks cumulative imbalance across the history, while CAPRI classifies patterns in the last three rounds using five rules. ‘Defect’ in the game means choosing not to cooperate; in life it must never mean harm or revenge.")}</p>
     </section>
 
     <section className="info-section">
-      <h2>{React.string("Why remember three rounds?")}</h2>
-      <p>{React.string("Murase and Baek searched deterministic strategies that could sustain cooperation with small accidental errors while avoiding a worse long-run game payoff than an opponent. CAPRI uses three rounds to distinguish a breach, a response to that breach, and a path back to cooperation. A simpler one-round copycat rule cannot make those distinctions.")}</p>
-      <p>{React.string("The paper tests CAPRI in mathematical and evolutionary simulations, including errors in carrying out moves. It does not test this app on real relationships. The exact Table 3 strategy depends on complete, correctly ordered rounds; real interactions are much less tidy.")}</p>
+      <h2>{React.string("What the study found")}</h2>
+      <p>{React.string("Li and colleagues used mathematical analysis and computer simulations to study CURE. They report that cumulative reciprocity can sustain cooperation despite errors, promote fair outcomes in the modeled games, and evolve in hostile environments. In an economic experiment, participants played a repeated game for small monetary stakes; CURE was more predictive of participants’ choices than several classical strategies. That result concerns behavior in that experiment, not how people should act in relationships.")}</p>
     </section>
 
     <section className="info-section">
       <h2>{React.string("Where the model stops")}</h2>
-      <p>{React.string("A game round has fixed rules, known payoffs, and a clean C or D. Human interactions rarely do. Someone may be unable to help, may understand an agreement differently, or may have made a harmless error. A missed promise and a serious violation should not receive the same automatic response just because both fit the letter D.")}</p>
-      <p>{React.string("The paper’s results are about repeated games, not a universal best way to treat people. Use the log to notice patterns and slow down a decision. Talk, clarify, or leave a harmful situation when that fits the circumstances; the app cannot make those judgments for you.")}</p>
+      <p>{React.string("CURE is an exact strategy for a simplified game with repeated choices and a clear C or D. Real interactions have context, unequal power, changing capacity, and unclear expectations. The study did not validate this rule for relationships, and a missed promise is not automatically a defection.")}</p>
+      <p>{React.string("Use the log to notice patterns and slow down a decision. Talk, clarify, or leave a harmful situation when that fits the circumstances; the app cannot make those judgments for you.")}</p>
     </section>
 
     <section id="when-to-use" className="info-section scenario-section">
@@ -101,7 +82,7 @@ let make = () =>
 
     <section id="when-not-to-use" className="info-section scenario-section info-limits">
       <h2>{React.string("When not to use it")}</h2>
-      <p>{React.string("These situations make the two-choice model misleading, unfair, or unsafe. CAPRI’s suggested boundary is never an instruction to retaliate or to stay in danger.")}</p>
+      <p>{React.string("These situations make the two-choice model misleading, unfair, or unsafe. A suggested boundary is never an instruction to retaliate or to stay in danger.")}</p>
       <ul className="scenario-list unsuitable">{unsuitable->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
       <div className="scenario-check">
         <h3>{React.string("Before you log a D")}</h3>
@@ -113,7 +94,7 @@ let make = () =>
     <section className="info-sources" ariaLabel="Research sources">
       <h2>{React.string("Read the research")}</h2>
       <ul>
-        <li><a href="https://doi.org/10.1038/s41598-020-73855-x" target="_blank" rel="noopener noreferrer">{React.string("Murase & Baek (2020), Five rules for friendly rivalry in direct reciprocity")}</a><span>{React.string("The CAPRI rules, full action table (Table 3), and simulation results.")}</span></li>
+        <li><a href="https://www.nature.com/articles/s43588-022-00334-w" target="_blank" rel="noopener noreferrer">{React.string("Li et al. (2022), Evolution of cooperation through cumulative reciprocity")}</a><span>{React.string("The CURE strategy, mathematical and computational results, and economic experiment.")}</span></li>
       </ul>
     </section>
   </article>
