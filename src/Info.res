@@ -55,12 +55,19 @@ let make = () =>
 
     <section className="info-section">
       <h2>{React.string("The exact rule in this app")}</h2>
-      <p>{React.string("Before each round, d = their cumulative D count − your cumulative D count. With Δ = 1, cooperate (C) if d ≤ Δ; otherwise defect (D). A D by them when you chose C raises d by 1. A D by you when they chose C lowers d by 1. C/C and D/D leave d unchanged. The count never decays within a person's history, so earlier unequal defections continue to matter. The paper explores several thresholds; this app fixes Δ = 1, a common setting in its simulations. Its human-behavior comparison uses Δ = 3.")}</p>
+      <p>{React.string("Before each round, d = their cumulative D count − your cumulative D count. With Δ = 1, cooperate (C) if d ≤ Δ; otherwise defect (D). A D by them when you chose C raises d by 1. A D by you when they chose C lowers d by 1. C/C and D/D leave d unchanged. The count never decays within a person's history, so earlier unequal defections continue to matter. This app chooses Δ = 1; the paper explores other thresholds and its human-behavior comparison uses Δ = 3. No threshold is established as optimal for human relationships.")}</p>
       <div className="info-examples">
         <p><strong>{React.string("Their D while you C:")}</strong>{React.string(" d rises from 0 to 1. With Δ = 1, you still cooperate; if they keep defecting while you cooperate, d eventually exceeds 1 and the rule suggests D.")}</p>
         <p><strong>{React.string("Your D while they C:")}</strong>{React.string(" d falls by 1, reflecting that your defection puts the imbalance in your favor. This count is mechanical; it does not decide what is fair in a real situation.")}</p>
       </div>
       <p>{React.string("Record both moves from the same round; both are required for new entries. Backdated entries are replayed in date order, and the displayed history suggestion is recomputed from the recorded moves. CURE differs from CAPRI: CURE tracks cumulative imbalance across the history, while CAPRI classifies patterns in the last three rounds using five rules. ‘Defect’ in the game means choosing not to cooperate; in life it must never mean harm or revenge.")}</p>
+    </section>
+
+    <section className="info-section">
+      <h2>{React.string("One person, selective entries")}</h2>
+      <p>{React.string("CURE tracks the cumulative imbalance across interactions with an opponent. The researchers also describe it as capturing a general sense of fairness in close relationships rather than an itemized account of every favor. Good Faith therefore keeps one ledger per person. An optional category labels an entry for your own review; it does not create another score or change d.")}</p>
+      <p>{React.string("Only record an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation in a reciprocal relationship. The model gives each logged D the same weight, but real events are not equal: a forgotten text, an unbought coffee, a serious broken promise, and abandonment in an emergency should not be entered as four interchangeable D's. Handle serious harm and emergencies directly, outside this rule.")}</p>
+      <p>{React.string("A separate 2025 study found that behavior can spill between concurrent games, and that such links can also reduce cooperation. It does not test CURE as relationship advice or show that every kind of real-life event belongs in one binary count.")}</p>
     </section>
 
     <section className="info-section">
@@ -76,7 +83,7 @@ let make = () =>
 
     <section id="when-to-use" className="info-section scenario-section">
       <h2>{React.string("When this can help")}</h2>
-      <p>{React.string("The best fit is one recurring, low-stakes agreement between people with similar freedom to choose. Both know what counts as keeping it, and stepping back from your own optional contribution would be safe and fair. These are examples for using a decision aid, not situations validated by the cited studies.")}</p>
+      <p>{React.string("The best fit is repeated, low-stakes reciprocal interactions with one person. Both people have a meaningful choice, know what cooperation would look like, and can safely step back from an optional contribution. These are examples for using a decision aid, not situations validated by the cited studies.")}</p>
       <ul className="scenario-list useful">{useful->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
     </section>
 
@@ -86,7 +93,7 @@ let make = () =>
       <ul className="scenario-list unsuitable">{unsuitable->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
       <div className="scenario-check">
         <h3>{React.string("Before you log a D")}</h3>
-        <p>{React.string("Ask: Was there a specific mutual agreement? Could they reasonably meet it? Am I judging that one agreement rather than their character? Would stepping back from my optional contribution be safe and proportionate? If any answer is unclear, talk or gather context before reducing the event to C or D.")}</p>
+        <p>{React.string("Ask: Did both people have a meaningful chance to cooperate? Was the expectation clear, and could they reasonably meet it? Am I treating a small disappointment as equal to a serious breach? Would stepping back from my optional contribution be safe and proportionate? If any answer is unclear, talk or gather context before reducing the event to C or D.")}</p>
       </div>
       <p className="scenario-safety">{React.string("If you feel unsafe, seek help from someone you trust or a local specialist service. For safety guidance, see the ")}<a href="https://www.who.int/news-room/fact-sheets/detail/violence-against-women" target="_blank" rel="noopener noreferrer">{React.string("World Health Organization")}</a>{React.string(" and the ")}<a href="https://www.thehotline.org/plan-for-safety/" target="_blank" rel="noopener noreferrer">{React.string("National Domestic Violence Hotline")}</a>{React.string(" (US).")}</p>
     </section>
@@ -95,6 +102,8 @@ let make = () =>
       <h2>{React.string("Read the research")}</h2>
       <ul>
         <li><a href="https://www.nature.com/articles/s43588-022-00334-w" target="_blank" rel="noopener noreferrer">{React.string("Li et al. (2022), Evolution of cooperation through cumulative reciprocity")}</a><span>{React.string("The CURE strategy, mathematical and computational results, and economic experiment.")}</span></li>
+        <li><a href="https://www.evolbio.mpg.de/3619529/news_publication_19411039_transferred" target="_blank" rel="noopener noreferrer">{React.string("Max Planck Institute, CURE research summary")}</a><span>{React.string("The researchers' description of cumulative reciprocity and an overall sense of fairness.")}</span></li>
+        <li><a href="https://www.nature.com/articles/s41467-025-56083-7" target="_blank" rel="noopener noreferrer">{React.string("Nature Communications (2025), concurrent games study")}</a><span>{React.string("Cross-game effects in a separate study; not a validation of CURE for relationships.")}</span></li>
       </ul>
     </section>
   </article>

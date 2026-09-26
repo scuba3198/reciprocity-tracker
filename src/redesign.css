@@ -96,6 +96,12 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .record-intro h2, .history-heading h2 { color: var(--ink); font-size: 32px; }
 .date-input, .note-input, html[data-theme="dark"] .date-input, html[data-theme="dark"] .note-input { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .date-input:focus, .note-input:focus { border-color: var(--green); box-shadow: 0 0 0 2px #87bd9440; }
+.category-field { margin-top: 16px; }
+.category-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 9px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; font-size: 12px; font-weight: 700; }
+.category-toggle span { font-size: 18px; font-weight: 400; }
+.category-options { display: flex; flex-wrap: wrap; gap: 8px; padding: 13px 0 4px; }
+.category-options button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font-size: 12px; }
+.category-options button.selected { border-color: var(--green); background: var(--surface-soft); }
 .date-row button:not(.calendar-toggle), html[data-theme="dark"] .date-row button:not(.calendar-toggle) { padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
 .date-row .calendar-toggle, html[data-theme="dark"] .date-row .calendar-toggle { color: var(--muted); }
 .calendar-panel, html[data-theme="dark"] .calendar-panel { background: var(--surface); border-color: var(--line); color: var(--ink); }
@@ -117,6 +123,7 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .history-list strong { color: var(--ink); }
 .history-list p, .history-list time, .history-list .history-moves, .history-list .actual-move { color: var(--muted); }
 .history-list .actual-move.diverged { color: var(--orange); }
+.history-category { margin-left: 9px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .history-symbol { color: var(--green); }
 .history-list .defect .history-symbol { color: var(--orange); }
 .history-empty { border-color: var(--line); color: var(--muted); }

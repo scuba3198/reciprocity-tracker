@@ -19,9 +19,13 @@ let decodeEntry = json => switch JSON.Decode.object(json) {
 | None => None
 | Some(obj) => {
     let date = stringField(obj, "date")->Option.flatMap(value => value->normalizeDate->Nullable.toOption)
-    switch (moveField(obj, "move"), moveField(obj, "myMove"), stringField(obj, "note"), date) {
-  | (Some(move), Some(myMove), Some(note), Some(date)) => {
-      let entry: State.entry = {move, myMove, note, date}
+    let category = switch field(obj, "category") {
+    | None => Some("")
+    | Some(value) => JSON.Decode.string(value)
+    }
+    switch (moveField(obj, "move"), moveField(obj, "myMove"), stringField(obj, "note"), date, category) {
+  | (Some(move), Some(myMove), Some(note), Some(date), Some(category)) => {
+      let entry: State.entry = {move, myMove, note, date, category}
       Some(entry)
     }
   | _ => None
@@ -68,6 +72,7 @@ let encodePeople = (people: array<State.person>) =>
       "myMove": switch entry.myMove { | State.Cooperate => "Cooperate" | State.Defect => "Defect" },
       "note": entry.note,
       "date": entry.date,
+      "category": entry.category,
     }),
   })
 

@@ -74,7 +74,7 @@ let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAd
         ? <p className="dashboard-activity-empty">{React.string("Interactions you record will appear here.")}</p>
         : <ol className="dashboard-activity-list">{recent->Array.mapWithIndex((item, index) => <li key={item.person.id ++ item.entry.date ++ Int.toString(index)}>
               <span className={item.entry.move == State.Cooperate ? "dashboard-activity-mark cooperate" : "dashboard-activity-mark defect"}>{React.string(item.entry.move == State.Cooperate ? "C" : "D")}</span>
-              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("They " ++ State.label(item.entry.move)->String.toLowerCase ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
+              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("They " ++ State.label(item.entry.move)->String.toLowerCase ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
               <time>{React.string(item.entry.date)}</time>
             </li>)->React.array}</ol>}
     </section>

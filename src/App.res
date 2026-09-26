@@ -33,6 +33,8 @@ let make = () => {
   let (selectedId, setSelectedId) = React.useState(_ => "")
   let (newName, setNewName) = React.useState(_ => "")
   let (note, setNote) = React.useState(_ => "")
+  let (category, setCategory) = React.useState(_ => "")
+  let (categoryOpen, setCategoryOpen) = React.useState(_ => false)
   let (myMove, setMyMove) = React.useState(_ => None)
   let (interactionDate, setInteractionDate) = React.useState(today)
   let (calendarOpen, setCalendarOpen) = React.useState(_ => false)
@@ -112,6 +114,8 @@ let make = () => {
     setEditTargetId(_ => "")
     setInteractionDate(_ => today())
     setMyMove(_ => None)
+    setCategory(_ => "")
+    setCategoryOpen(_ => false)
     setCalendarOpen(_ => false)
     setDateError(_ => "")
     openLedger()
@@ -129,6 +133,8 @@ let make = () => {
       setShowInsights(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
+      setCategory(_ => "")
+      setCategoryOpen(_ => false)
     }
   }
 
@@ -137,11 +143,13 @@ let make = () => {
     | (None, _) => ()
     | (_, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
     | (Some(mine), Some(date)) => {
-        let entry: State.entry = {move, myMove: mine, note: note->String.trim, date}
+        let entry: State.entry = {move, myMove: mine, note: note->String.trim, category, date}
         commit(people->Array.map(item => item.id == person.id
           ? {...item, entries: Array.concat(item.entries, [entry])}
           : item))
         setNote(_ => "")
+        setCategory(_ => "")
+        setCategoryOpen(_ => false)
         setMyMove(_ => None)
         setInteractionDate(_ => today())
         setCalendarOpen(_ => false)
@@ -230,6 +238,8 @@ let make = () => {
     setEditTargetId(_ => "")
     setNote(_ => "")
     setMyMove(_ => None)
+    setCategory(_ => "")
+    setCategoryOpen(_ => false)
     setInteractionDate(_ => today())
     setCalendarOpen(_ => false)
     setDateError(_ => "")
@@ -382,7 +392,7 @@ let make = () => {
             </section>
 
             <section className="record-section">
-              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log both moves from the same interaction.")}</p></div>
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Only log an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation.")}</p></div>
               <label className="note-label" htmlFor="interaction-date">{React.string("When did it happen?")}</label>
               <div className="date-row">
                 <div className="date-input-wrap">
@@ -410,6 +420,14 @@ let make = () => {
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <div className="category-field">
+                <button className="category-toggle" type_="button" ariaExpanded={categoryOpen} ariaControls="category-options" onClick={_ => setCategoryOpen(previous => !previous)}>{React.string("Category (optional): " ++ (category == "" ? "None" : category))}<span ariaHidden=true>{React.string(categoryOpen ? "−" : "+")}</span></button>
+                {categoryOpen
+                  ? <div id="category-options" className="category-options" role="group" ariaLabel="Interaction category">
+                      {["", "Work", "Favor", "Commitment", "Money", "Social", "Support", "Other"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={category == choice ? #"true" : #"false"} className={category == choice ? "selected" : ""} onClick={_ => {setCategory(_ => choice); setCategoryOpen(_ => false)}}>{React.string(choice == "" ? "None" : choice)}</button>)->React.array}
+                    </div>
+                  : React.null}
+              </div>
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did you do? (required for CURE)")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
@@ -431,7 +449,7 @@ let make = () => {
                 : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
                     let entry = item.entry
                     let different = entry.myMove != item.recommended
-                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong><p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}<span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span></p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
+                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}<p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}<span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span></p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
                   })->React.array}</ol>}
             </section>
           </div>

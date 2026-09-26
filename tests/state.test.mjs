@@ -4,7 +4,7 @@ import {next, orderedEntries, history} from '../src/State.res.mjs'
 import {backup, load, parseBackup} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
-const entry = (mine, theirs, date) => ({myMove: mine, move: theirs, note: '', date})
+const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category})
 
 test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
   const breach = entry('Cooperate', 'Defect', '2024-03-01')
@@ -13,6 +13,7 @@ test('CURE uses their total defections minus yours with inclusive tolerance 1', 
   assert.deepEqual([next([]).move, next([breach]).move, next([breach, repeated]).move, next([breach, repeated, repair]).move],
     ['Cooperate', 'Cooperate', 'Defect', 'Cooperate'])
   assert.equal(next([breach, repeated]).difference, 2)
+  assert.deepEqual(next([breach, {...repeated, category: 'Money'}]), next([breach, repeated]))
   assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
   assert.equal(next([entry('Defect', 'Defect', '2024-03-01')]).difference, 0)
 })
@@ -32,9 +33,17 @@ test('CURE remembers the full history and recomputes the advice before each roun
   assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
 })
 
-test('backup round-trips and rejects incomplete or unrelated files', () => {
-  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29'}]}]
+test('backup round-trips category and defaults it for older entries', () => {
+  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29', category: 'Commitment'}]}]
   assert.deepEqual(parseBackup(backup(people)), {TAG: 'Ok', _0: people})
+  const legacy = JSON.parse(backup(people))
+  delete legacy.people[0].entries[0].category
+  assert.deepEqual(parseBackup(JSON.stringify(legacy))._0[0].entries[0].category, '')
+  for (const category of [null, 7, {}]) {
+    const malformed = JSON.parse(backup(people))
+    malformed.people[0].entries[0].category = category
+    assert.equal(parseBackup(JSON.stringify(malformed)).TAG, 'Error')
+  }
   assert.equal(parseBackup('{broken').TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'other', version: 1, people})).TAG, 'Error')
   assert.equal(parseBackup(JSON.stringify({format: 'good-faith-backup', version: 4, people: [{...people[0], entries: [{move: 'Other', myMove: 'Cooperate', note: '', date: '2024-02-29'}]}]})).TAG, 'Error')
@@ -51,6 +60,10 @@ test('CURE starts a fresh ledger and loads only its new storage key', () => {
     assert.deepEqual(load(), [])
     saved['good-faith.people.v2'] = JSON.stringify(people)
     assert.deepEqual(load(), people)
+    const legacy = JSON.parse(saved['good-faith.people.v2'])
+    delete legacy[0].entries[0].category
+    saved['good-faith.people.v2'] = JSON.stringify(legacy)
+    assert.equal(load()[0].entries[0].category, '')
   } finally {
     delete globalThis.localStorage
   }
