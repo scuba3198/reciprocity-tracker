@@ -66,13 +66,14 @@ let make = () =>
 
     <section className="info-section">
       <h2>{React.string("Bayesian behavior estimate")}</h2>
-      <p>{React.string("Good Faith estimates how often a person cooperates after each of your moves using the interactions you logged. Each estimate begins at 50% (a Beta(1,1) prior), then updates with their cooperative and defecting responses. Category estimates lean toward that person's overall estimate when a category has little history. The evidence label describes the number of relevant observations, not a statistical confidence interval.")}</p>
+      <p>{React.string("Good Faith estimates how often a person cooperates after each of your moves using the interactions you logged. Each estimate begins at 50% (a Beta(1,1) prior), then updates as (1 + their cooperations) / (2 + relevant interactions). An unobserved branch stays at 50%. Category estimates add two pseudo-observations at that person's overall conditional rate before using category observations. The evidence label describes the number of relevant observations, not a statistical confidence interval.")}</p>
       <p>{React.string("This predicts behavior from past logged interactions. It cannot determine motives or personality, and the estimate may change as you record more interactions.")}</p>
     </section>
 
     <section className="info-section">
       <h2>{React.string("Optional decision analysis")}</h2>
-      <p>{React.string("Help me decide compares the expected utility of cooperating and defecting using those two estimated response probabilities and four stakes you choose. With cost C, successful reciprocity value V, exploitation cost E, and relationship importance R, the illustrative utility mapping is CC = V + R − C, CD = −C − E, DC = V/2 − R, and DD = −R. DC gives half the mutual-cooperation value for receiving help without reciprocating; both adversarial choices carry a relationship cost. These are transparent assumptions, not a uniquely correct payoff table.")}</p>
+      <p>{React.string("On a person's page, Help me decide opens four optional 1–5 ratings, all starting at 3. It compares the expected utility of cooperating and defecting using the two estimated response probabilities and the stakes you choose. With cost C, successful reciprocity value V, exploitation cost E, and relationship importance R, the illustrative utility mapping is CC = V + R − C, CD = −C − E, DC = V/2 − R, and DD = −R. DC gives half the mutual-cooperation value for receiving help without reciprocating; both adversarial choices carry a relationship cost. These are transparent assumptions, not a uniquely correct payoff table.")}</p>
+      <p>{React.string("For either move, expected utility equals its cooperative-outcome utility multiplied by the estimated chance they cooperate, plus its defecting-outcome utility multiplied by the remaining chance. The higher result is suggested; an exact tie shows no clear advantage. Sparse response history is flagged alongside the result.")}</p>
       <p>{React.string("Expected utility depends on your own value judgments. It is a decision aid, not an objective moral rule. CURE remains the app's reciprocity strategy; this optional analysis may disagree with it and never overrides it. You make the final decision.")}</p>
     </section>
 
