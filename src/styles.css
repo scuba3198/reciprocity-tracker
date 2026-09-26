@@ -55,7 +55,7 @@ html[data-theme="dark"] .decision-panel.pending{background:#3f5046}html[data-the
 @media(max-width:760px){.own-move-options button{flex:1;min-width:max-content}.history-list li{flex-wrap:wrap}.history-list time{margin-left:auto}}
 html[data-theme="dark"] .info-jump a{background:#263b2c;border-color:#405a43;color:#c8e1ce}html[data-theme="dark"] .info-jump a:hover{background:#35513b}html[data-theme="dark"] .scenario-list li{background:#1e3024;border-color:#405a43}html[data-theme="dark"] .scenario-list strong{color:#b7dfbd}html[data-theme="dark"] .scenario-list span{color:#bfd0c0}html[data-theme="dark"] .scenario-list.unsuitable li{background:#2d251f;border-color:#654a3d}html[data-theme="dark"] .scenario-list.unsuitable strong{color:#e4ae94}html[data-theme="dark"] .scenario-check{background:#263b2c;border-color:#75a57c}
 
-/* The ledger uses type and rules for hierarchy; only transient controls need a container. */
+/* The ledger uses type and rules for hierarchy; the recommendation gets a colored container. */
 :root{--green:#244938;--cream:#fafaf7;--ink:#202620;--muted:#626b63;--line:#d5d9d2;--orange:#9e5944;background:var(--cream);color:var(--ink)}
 body,.sidebar,.main-content{background:var(--cream)}
 .app-shell{grid-template-columns:256px minmax(0,1fr)}
@@ -98,4 +98,11 @@ html[data-theme="dark"] .payoff-example>div,html[data-theme="dark"] .info-table 
 .mobile-menu-toggle{display:none}
 html[data-theme="dark"] .info-nav,html[data-theme="dark"] .info-nav:hover,html[data-theme="dark"] .info-nav.active{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
 @media(max-width:760px){.mobile-menu-toggle{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 0;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);text-align:left;font-size:12px;font-weight:700}.mobile-menu-toggle::after{content:'+';float:right;font-size:18px;font-weight:400;line-height:1}.extras-open .mobile-menu-toggle::after{content:'−'}.sidebar:not(.extras-open) .backup-tools,.sidebar:not(.extras-open) .info-nav,.sidebar:not(.extras-open) .theme-tools{display:none}.sidebar.extras-open .backup-tools{margin-top:5px}.sidebar.extras-open .theme-tools{margin-bottom:8px}}
+.decision-panel,.decision-panel.defect,.decision-panel.pending{padding:28px 32px;border:1px solid #a6c2ab;border-radius:8px;background:#eaf2ea}
+.decision-panel.defect{border-color:#d8ad9c;background:#f7ece6}
+.decision-panel.pending{border-color:var(--line);background:#f0f2ed}
+html[data-theme="dark"] .decision-panel{border-color:#527760;background:#20372b}
+html[data-theme="dark"] .decision-panel.defect{border-color:#875b4c;background:#382821}
+html[data-theme="dark"] .decision-panel.pending{border-color:var(--line);background:#242c26}
+@media(max-width:760px){.decision-panel,.decision-panel.defect,.decision-panel.pending{padding:24px 22px}}
 
