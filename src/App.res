@@ -382,7 +382,7 @@ let make = () => {
             </section>
 
             <section className="record-section">
-              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log both moves from the same interaction. Keep this ledger to one kind of reciprocal exchange; do not mix unrelated favors or promises.")}</p></div>
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Log both moves from the same interaction.")}</p></div>
               <label className="note-label" htmlFor="interaction-date">{React.string("When did it happen?")}</label>
               <div className="date-row">
                 <div className="date-input-wrap">

@@ -77,7 +77,6 @@ let make = () =>
     <section id="when-to-use" className="info-section scenario-section">
       <h2>{React.string("When this can help")}</h2>
       <p>{React.string("The best fit is one recurring, low-stakes agreement between people with similar freedom to choose. Both know what counts as keeping it, and stepping back from your own optional contribution would be safe and fair. These are examples for using a decision aid, not situations validated by the cited studies.")}</p>
-      <p><strong>{React.string("Keep C and D in the same reciprocal domain.")}</strong>{React.string(" Do not combine unrelated exchanges in one ledger. For example, ‘Alex did not invite me to a party, so I will not cover their class’ mixes social invitations with work favors. A coherent ledger could follow work favors, shared household responsibilities, reciprocal commitments, or taking turns helping each other.")}</p>
       <ul className="scenario-list useful">{useful->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
     </section>
 
