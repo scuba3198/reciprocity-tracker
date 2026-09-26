@@ -30,7 +30,7 @@ let trendPath = (points: array<int>) => {
 }
 
 @react.component
-let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAdd: unit => unit) => {
+let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
   let recent: array<recentItem> = people->Array.reduce([], (items, person) => {
     let history = person.entries->State.history->Belt.Array.reverse
     Array.concat(items, history->Array.map(item => {person, entry: item.entry}))
@@ -40,7 +40,7 @@ let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAd
     <section className="dashboard-hero" ariaLabelledby="dashboard-title">
       <div className="dashboard-hero-copy">
     <h1 id="dashboard-title">{React.string("A more thoughtful you, one conversation at a time.")}</h1>
-    <p className="dashboard-intro">{React.string("Track your interactions, see the bigger picture, and get suggested next moves with CURE.")}</p>
+    <p className="dashboard-intro">{React.string("Track your interactions, see the bigger picture, and get suggested next moves with ")}<button className="dashboard-cure-link" type_="button" onClick={_ => onLearn()}>{React.string("CURE")}</button>{React.string(".")}</p>
         <button className="dashboard-cta" type_="button" onClick={_ => onAdd()}><span>{React.string("+")}</span>{React.string("Add someone")}</button>
       </div>
       <ul className="dashboard-hero-points">

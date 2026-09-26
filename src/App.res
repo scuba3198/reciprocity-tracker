@@ -143,6 +143,15 @@ let make = () => {
     setMobileMenuOpen(_ => false)
     scrollTo(0, 0)
   }
+  let openInfo = () => {
+    setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger")
+    setShowInfo(_ => true)
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setMobileMenuOpen(_ => false)
+    setCalendarTarget(_ => "")
+    scrollTo(0, 0)
+  }
   let leaveInfo = () => switch returnView {
   | "ledger" => openLedger()
   | "insights" => openInsights()
@@ -377,7 +386,7 @@ let make = () => {
         <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
 
         <div className={sidebarSettingsOpen ? "sidebar-settings-panel open" : "sidebar-settings-panel"}>
-        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => {if showInfo {leaveInfo()} else {setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger"); setShowInfo(_ => true); setShowDashboard(_ => false); setShowInsights(_ => false); setMobileMenuOpen(_ => false); setCalendarTarget(_ => ""); scrollTo(0, 0)}}}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
+        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => showInfo ? leaveInfo() : openInfo()}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
           <div className="theme-options" role="group" ariaLabel="Color theme">
@@ -412,7 +421,7 @@ let make = () => {
           {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
         </section>
       } else if showDashboard {
-        <Dashboard people onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} />
+        <Dashboard people onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
       } else {
       switch selected {
       | None =>
