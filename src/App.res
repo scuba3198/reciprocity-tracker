@@ -6,6 +6,7 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
+@module("./InteractionDate.js") external displayDate: string => string = "displayDate"
 @module("./InteractionDate.js") external getCalendarMonth: string => calendarView = "calendarMonth"
 @module("./Theme.js") external loadTheme: unit => string = "load"
 @module("./Theme.js") external applyTheme: string => unit = "apply"
@@ -37,6 +38,10 @@ let make = () => {
   let (categoryOpen, setCategoryOpen) = React.useState(_ => false)
   let (myMove, setMyMove) = React.useState(_ => None)
   let (interactionDate, setInteractionDate) = React.useState(today)
+  let (myActionDate, setMyActionDate) = React.useState(_ => "")
+  let (theirActionDate, setTheirActionDate) = React.useState(_ => "")
+  let (actionDatesOpen, setActionDatesOpen) = React.useState(_ => false)
+  let (actionDateError, setActionDateError) = React.useState(_ => "")
   let (calendarOpen, setCalendarOpen) = React.useState(_ => false)
   let (monthKey, setMonthKey) = React.useState(_ => today()->String.slice(~start=0, ~end=7))
   let (dateError, setDateError) = React.useState(_ => "")
@@ -113,6 +118,10 @@ let make = () => {
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
     setInteractionDate(_ => today())
+    setMyActionDate(_ => "")
+    setTheirActionDate(_ => "")
+    setActionDatesOpen(_ => false)
+    setActionDateError(_ => "")
     setMyMove(_ => None)
     setCategory(_ => "")
     setCategoryOpen(_ => false)
@@ -133,6 +142,10 @@ let make = () => {
       setShowInsights(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
+      setMyActionDate(_ => "")
+      setTheirActionDate(_ => "")
+      setActionDatesOpen(_ => false)
+      setActionDateError(_ => "")
       setCategory(_ => "")
       setCategoryOpen(_ => false)
     }
@@ -143,17 +156,33 @@ let make = () => {
     | (None, _) => ()
     | (_, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
     | (Some(mine), Some(date)) => {
-        let entry: State.entry = {move, myMove: mine, note: note->String.trim, category, date}
-        commit(people->Array.map(item => item.id == person.id
-          ? {...item, entries: Array.concat(item.entries, [entry])}
-          : item))
-        setNote(_ => "")
-        setCategory(_ => "")
-        setCategoryOpen(_ => false)
-        setMyMove(_ => None)
-        setInteractionDate(_ => today())
-        setCalendarOpen(_ => false)
-        setDateError(_ => "")
+        let myInput = myActionDate->String.trim
+        let theirInput = theirActionDate->String.trim
+        let mineDate = myInput == "" ? Some("") : myInput->normalizeDate->Nullable.toOption
+        let theirsDate = theirInput == "" ? Some("") : theirInput->normalizeDate->Nullable.toOption
+        switch (mineDate, theirsDate) {
+        | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
+            let entry: State.entry = {move, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
+            commit(people->Array.map(item => item.id == person.id
+              ? {...item, entries: Array.concat(item.entries, [entry])}
+              : item))
+            setNote(_ => "")
+            setCategory(_ => "")
+            setCategoryOpen(_ => false)
+            setMyMove(_ => None)
+            setInteractionDate(_ => today())
+            setMyActionDate(_ => "")
+            setTheirActionDate(_ => "")
+            setActionDatesOpen(_ => false)
+            setActionDateError(_ => "")
+            setCalendarOpen(_ => false)
+            setDateError(_ => "")
+          }
+        | _ => {
+            setActionDatesOpen(_ => true)
+            setActionDateError(_ => "Enter real action dates no later than the round completion date.")
+          }
+        }
       }
     }
   }
@@ -241,6 +270,10 @@ let make = () => {
     setCategory(_ => "")
     setCategoryOpen(_ => false)
     setInteractionDate(_ => today())
+    setMyActionDate(_ => "")
+    setTheirActionDate(_ => "")
+    setActionDatesOpen(_ => false)
+    setActionDateError(_ => "")
     setCalendarOpen(_ => false)
     setDateError(_ => "")
     setRestorePreview(_ => None)
@@ -393,17 +426,18 @@ let make = () => {
 
             <section className="record-section">
               <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Only log an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation.")}</p></div>
-              <label className="note-label" htmlFor="interaction-date">{React.string("When did it happen?")}</label>
+              <label className="note-label" htmlFor="interaction-date">{React.string("When was this round completed?")}</label>
+              <p id="completion-date-help" className="date-help">{React.string("Use the date when both people had completed, missed, or otherwise resolved their part of this reciprocal round.")}</p>
               <div className="date-row">
                 <div className="date-input-wrap">
-                  <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 onClick={_ => openCalendar()} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarOpen(_ => false); setDateError(_ => "")}} />
+                  <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 ariaDescribedby="completion-date-help" onClick={_ => openCalendar()} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}} />
                   <button className="calendar-toggle" type_="button" ariaLabel={calendarOpen ? "Close calendar" : "Open calendar"} ariaExpanded={calendarOpen} onClick={_ => calendarOpen ? setCalendarOpen(_ => false) : openCalendar()}><span className="calendar-glyph" ariaHidden=true></span></button>
                 </div>
-                <button type_="button" onClick={_ => {setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string("Today")}</button>
-                <button type_="button" onClick={_ => {setInteractionDate(_ => yesterday()); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string("Yesterday")}</button>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => today()); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Today")}</button>
+                <button type_="button" onClick={_ => {setInteractionDate(_ => yesterday()); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string("Yesterday")}</button>
               </div>
               {calendarOpen
-                ? <section className="calendar-panel" ariaLabel="Choose interaction date">
+                ? <section className="calendar-panel" ariaLabel="Choose round completion date">
                     <div className="calendar-head">
                       <button type_="button" ariaLabel="Previous month" disabled={calendar.previousDisabled} onClick={_ => setMonthKey(_ => calendar.previous)}>{React.string("‹")}</button>
                       <strong>{React.string(calendar.title)}</strong>
@@ -413,13 +447,23 @@ let make = () => {
                       {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]->Array.map(day => <span key={day} className="calendar-weekday">{React.string(day)}</span>)->React.array}
                       {calendar.days->Array.mapWithIndex((day, index) => day.date == ""
                         ? <span key={Int.toString(index)} ariaHidden=true></span>
-                        : <button key={day.date} type_="button" className={interactionDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={interactionDate == day.date ? #"true" : #"false"} disabled={day.disabled} onClick={_ => {setInteractionDate(_ => day.date); setCalendarOpen(_ => false); setDateError(_ => "")}}>{React.string(day.label)}</button>)->React.array}
+                        : <button key={day.date} type_="button" className={interactionDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={interactionDate == day.date ? #"true" : #"false"} disabled={day.disabled} onClick={_ => {setInteractionDate(_ => day.date); setCalendarOpen(_ => false); setDateError(_ => ""); setActionDateError(_ => "")}}>{React.string(day.label)}</button>)->React.array}
                     </div>
                   </section>
                 : React.null}
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
               <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
               <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <div className="action-dates-field">
+                <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => setActionDatesOpen(previous => !previous)}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
+                {actionDatesOpen
+                  ? <div id="action-dates" className="action-dates-inputs">
+                      <div><label className="note-label" htmlFor="my-action-date">{React.string("Your action date (optional)")}</label><input id="my-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={myActionDate} maxLength=10 onChange={event => {setMyActionDate(_ => JsxEvent.Form.target(event)["value"]); setActionDateError(_ => "")}} /></div>
+                      <div><label className="note-label" htmlFor="their-action-date">{React.string("Their action date (optional)")}</label><input id="their-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={theirActionDate} maxLength=10 onChange={event => {setTheirActionDate(_ => JsxEvent.Form.target(event)["value"]); setActionDateError(_ => "")}} /></div>
+                    </div>
+                  : React.null}
+                {actionDateError != "" ? <p className="date-error" role="alert">{React.string(actionDateError)}</p> : React.null}
+              </div>
               <div className="category-field">
                 <button className="category-toggle" type_="button" ariaExpanded={categoryOpen} ariaControls="category-options" onClick={_ => setCategoryOpen(previous => !previous)}>{React.string("Category (optional): " ++ (category == "" ? "None" : category))}<span ariaHidden=true>{React.string(categoryOpen ? "−" : "+")}</span></button>
                 {categoryOpen
@@ -449,7 +493,23 @@ let make = () => {
                 : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
                     let entry = item.entry
                     let different = entry.myMove != item.recommended
-                    <li key={Int.toString(index)} className={moveClass(entry.move)}><span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span><div><strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}<p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}<span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span></p>{entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}</div><time>{React.string(entry.date)}</time></li>
+                    let hasActionDates = entry.myActionDate != "" || entry.theirActionDate != ""
+                    <li key={Int.toString(index)} className={moveClass(entry.move)}>
+                      <span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span>
+                      <div>
+                        <strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}
+                        <p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}{!hasActionDates ? <span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ nextLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span> : React.null}</p>
+                        {hasActionDates
+                          ? <div className="history-action-dates">
+                              <p>{React.string("You: " ++ (entry.myMove == State.Cooperate ? "Cooperated" : "Withheld cooperation") ++ (entry.myActionDate == "" ? "" : " · " ++ displayDate(entry.myActionDate)) ++ (different ? " (different from suggestion)" : ""))}</p>
+                              <p>{React.string("Them: " ++ State.label(entry.move) ++ (entry.theirActionDate == "" ? "" : " · " ++ displayDate(entry.theirActionDate)))}</p>
+                              <p>{React.string("Round completed: " ++ displayDate(entry.date))}</p>
+                            </div>
+                          : React.null}
+                        {entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}
+                      </div>
+                      {!hasActionDates ? <time>{React.string(entry.date)}</time> : React.null}
+                    </li>
                   })->React.array}</ol>}
             </section>
           </div>

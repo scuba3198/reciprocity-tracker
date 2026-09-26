@@ -1,6 +1,12 @@
 const localDay = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const monthFormatter = new Intl.DateTimeFormat('en-US', {month: 'long', year: 'numeric'})
 const dayFormatter = new Intl.DateTimeFormat('en-US', {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'})
+const shortFormatter = new Intl.DateTimeFormat('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+
+export function displayDate(value) {
+  const [year, month, day] = value.split('-').map(Number)
+  return shortFormatter.format(new Date(year, month - 1, day, 12))
+}
 
 export const today = () => localDay(new Date())
 

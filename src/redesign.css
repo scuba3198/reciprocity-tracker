@@ -96,6 +96,13 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .record-intro h2, .history-heading h2 { color: var(--ink); font-size: 32px; }
 .date-input, .note-input, html[data-theme="dark"] .date-input, html[data-theme="dark"] .note-input { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .date-input:focus, .note-input:focus { border-color: var(--green); box-shadow: 0 0 0 2px #87bd9440; }
+.date-help { max-width: 60ch; margin: -2px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.action-dates-field { margin-top: 9px; }
+.action-dates-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 40px; padding: 7px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; font-size: 12px; font-weight: 700; }
+.action-dates-toggle span { font-size: 18px; font-weight: 400; }
+.action-dates-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.action-dates-inputs .date-input { width: 100%; }
+.action-dates-field .date-error { margin: 8px 0 0; }
 .category-field { margin-top: 16px; }
 .category-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 9px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); text-align: left; font-size: 12px; font-weight: 700; }
 .category-toggle span { font-size: 18px; font-weight: 400; }
@@ -123,6 +130,8 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .history-list strong { color: var(--ink); }
 .history-list p, .history-list time, .history-list .history-moves, .history-list .actual-move { color: var(--muted); }
 .history-list .actual-move.diverged { color: var(--orange); }
+.history-list .history-action-dates { margin-top: 6px; }
+.history-list .history-action-dates p { margin-top: 2px; }
 .history-category { margin-left: 9px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .history-symbol { color: var(--green); }
 .history-list .defect .history-symbol { color: var(--orange); }
@@ -226,6 +235,7 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
   .date-row { flex-wrap: wrap; }
   .date-input-wrap { flex: 1 0 100%; width: 100%; }
   .date-row button:not(.calendar-toggle) { flex: 1; }
+  .action-dates-inputs { grid-template-columns: 1fr; }
   .own-move-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .own-move-options button, .own-move-options button:hover, .own-move-options button.selected { min-width: 0; }
 }

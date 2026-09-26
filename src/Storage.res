@@ -8,6 +8,14 @@ let key = "good-faith.people.v2"
 
 let field = (obj, name) => Dict.get(obj, name)
 let stringField = (obj, name) => field(obj, name)->Option.flatMap(JSON.Decode.string)
+let optionalDateField = (obj, name) => switch field(obj, name) {
+| None => Some("")
+| Some(value) => switch JSON.Decode.string(value) {
+  | None => None
+  | Some("") => Some("")
+  | Some(value) => value->normalizeDate->Nullable.toOption
+  }
+}
 let numberField = (obj, name) => field(obj, name)->Option.flatMap(JSON.Decode.float)
 let moveField = (obj, name) => switch stringField(obj, name) {
 | Some("Cooperate") => Some(State.Cooperate)
@@ -19,14 +27,20 @@ let decodeEntry = json => switch JSON.Decode.object(json) {
 | None => None
 | Some(obj) => {
     let date = stringField(obj, "date")->Option.flatMap(value => value->normalizeDate->Nullable.toOption)
+    let myActionDate = optionalDateField(obj, "myActionDate")
+    let theirActionDate = optionalDateField(obj, "theirActionDate")
     let category = switch field(obj, "category") {
     | None => Some("")
     | Some(value) => JSON.Decode.string(value)
     }
-    switch (moveField(obj, "move"), moveField(obj, "myMove"), stringField(obj, "note"), date, category) {
-  | (Some(move), Some(myMove), Some(note), Some(date), Some(category)) => {
-      let entry: State.entry = {move, myMove, note, date, category}
-      Some(entry)
+    switch (moveField(obj, "move"), moveField(obj, "myMove"), stringField(obj, "note"), date, category, myActionDate, theirActionDate) {
+  | (Some(move), Some(myMove), Some(note), Some(date), Some(category), Some(myActionDate), Some(theirActionDate)) => {
+      if (myActionDate != "" && myActionDate > date) || (theirActionDate != "" && theirActionDate > date) {
+        None
+      } else {
+        let entry: State.entry = {move, myMove, note, date, category, myActionDate, theirActionDate}
+        Some(entry)
+      }
     }
   | _ => None
   }
@@ -73,6 +87,8 @@ let encodePeople = (people: array<State.person>) =>
       "note": entry.note,
       "date": entry.date,
       "category": entry.category,
+      "myActionDate": entry.myActionDate,
+      "theirActionDate": entry.theirActionDate,
     }),
   })
 

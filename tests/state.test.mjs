@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {next, orderedEntries, history} from '../src/State.res.mjs'
-import {backup, load, parseBackup} from '../src/Storage.res.mjs'
+import {backup, load, parseBackup, save} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
-const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category})
+const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category, myActionDate: '', theirActionDate: ''})
 
 test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
   const breach = entry('Cooperate', 'Defect', '2024-03-01')
@@ -14,6 +14,7 @@ test('CURE uses their total defections minus yours with inclusive tolerance 1', 
     ['Cooperate', 'Cooperate', 'Defect', 'Cooperate'])
   assert.equal(next([breach, repeated]).difference, 2)
   assert.deepEqual(next([breach, {...repeated, category: 'Money'}]), next([breach, repeated]))
+  assert.deepEqual(next([breach, {...repeated, myActionDate: '2024-03-01', theirActionDate: '2024-03-01'}]), next([breach, repeated]))
   assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
   assert.equal(next([entry('Defect', 'Defect', '2024-03-01')]).difference, 0)
 })
@@ -33,12 +34,20 @@ test('CURE remembers the full history and recomputes the advice before each roun
   assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
 })
 
-test('backup round-trips category and defaults it for older entries', () => {
-  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29', category: 'Commitment'}]}]
+test('backup round-trips action dates and defaults them for older entries', () => {
+  const people = [{id: 'one', name: 'A person', entries: [{move: 'Defect', myMove: 'Cooperate', note: 'Missed a promise', date: '2024-02-29', category: 'Commitment', myActionDate: '2024-02-27', theirActionDate: ''}]}]
   assert.deepEqual(parseBackup(backup(people)), {TAG: 'Ok', _0: people})
   const legacy = JSON.parse(backup(people))
   delete legacy.people[0].entries[0].category
+  delete legacy.people[0].entries[0].myActionDate
+  delete legacy.people[0].entries[0].theirActionDate
   assert.deepEqual(parseBackup(JSON.stringify(legacy))._0[0].entries[0].category, '')
+  assert.deepEqual([parseBackup(JSON.stringify(legacy))._0[0].entries[0].myActionDate, parseBackup(JSON.stringify(legacy))._0[0].entries[0].theirActionDate], ['', ''])
+  for (const date of [null, 7, {}, '2024-02-30', '2024-03-01']) {
+    const malformed = JSON.parse(backup(people))
+    malformed.people[0].entries[0].myActionDate = date
+    assert.equal(parseBackup(JSON.stringify(malformed)).TAG, 'Error')
+  }
   for (const category of [null, 7, {}]) {
     const malformed = JSON.parse(backup(people))
     malformed.people[0].entries[0].category = category
@@ -64,6 +73,20 @@ test('CURE starts a fresh ledger and loads only its new storage key', () => {
     delete legacy[0].entries[0].category
     saved['good-faith.people.v2'] = JSON.stringify(legacy)
     assert.equal(load()[0].entries[0].category, '')
+    assert.equal(load()[0].entries[0].myActionDate, '')
+    assert.equal(load()[0].entries[0].theirActionDate, '')
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('save persists both action dates', () => {
+  let stored
+  globalThis.localStorage = {setItem: (_, value) => { stored = value }}
+  try {
+    const people = [{id: 'one', name: 'A person', entries: [{...entry('Cooperate', 'Defect', '2024-03-01'), myActionDate: '2024-02-29', theirActionDate: ''}]}]
+    save(people)
+    assert.deepEqual(JSON.parse(stored)[0].entries[0], people[0].entries[0])
   } finally {
     delete globalThis.localStorage
   }
@@ -78,6 +101,7 @@ test('interaction dates are valid local dates and backdated moves are replayed i
   const later = entry('Defect', 'Cooperate', '2024-03-02')
   const earlier = entry('Cooperate', 'Defect', '2024-03-01')
   assert.deepEqual(orderedEntries([later, earlier]), [earlier, later])
+  assert.deepEqual(orderedEntries([{...later, myActionDate: '2024-02-28'}, earlier]).map(item => item.date), ['2024-03-01', '2024-03-02'])
   assert.equal(next([later, earlier]).move, 'Cooperate')
 })
 

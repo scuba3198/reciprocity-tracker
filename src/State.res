@@ -1,5 +1,5 @@
 type move = Cooperate | Defect
-type entry = {move: move, myMove: move, note: string, date: string, category: string}
+type entry = {move: move, myMove: move, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type person = {id: string, name: string, entries: array<entry>}
 type historyItem = {entry: entry, recommended: move, differenceBefore: int}
 type decision = {move: move, rule: string, explanation: string, difference: int}
