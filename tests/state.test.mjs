@@ -35,13 +35,13 @@ test('CURE remembers the full history and recomputes the advice before each roun
 })
 
 test('CURE starts a fresh ledger and loads only its new storage key', () => {
-  const people = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01')]}]
+  const people = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01')], drafts: []}]
   const saved = {'good-faith.people.v1': JSON.stringify(people)}
   globalThis.localStorage = {getItem: key => saved[key] ?? null}
   try {
     assert.deepEqual(load(), [])
     saved['good-faith.people.v2'] = JSON.stringify(people)
-    assert.deepEqual(load(), people.map(person => ({...person, draft: undefined})))
+    assert.deepEqual(load(), people)
     const legacy = JSON.parse(saved['good-faith.people.v2'])
     delete legacy[0].entries[0].category
     saved['good-faith.people.v2'] = JSON.stringify(legacy)
@@ -53,24 +53,28 @@ test('CURE starts a fresh ledger and loads only its new storage key', () => {
   }
 })
 
-test('per-person drafts roundtrip without affecting CURE until confirmed', () => {
+test('multiple drafts roundtrip, migrate a legacy draft, and confirm independently', () => {
   let stored
   globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
   try {
-    const savedRound = entry('Cooperate', 'Defect', '2024-03-01')
-    const draft = {myMove: 'Cooperate', move: '', note: 'still discussing', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}
-    save([{id: 'one', name: 'A person', entries: [savedRound], draft}])
-    const reopened = load()[0]
-    assert.deepEqual(reopened.draft, draft)
-    assert.deepEqual(next(reopened.entries), next([savedRound]))
+    const legacy = {id: 'legacy', name: 'Older person', entries: [], draft: {saved: true, move: '', myMove: 'Cooperate', note: 'old request', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}}
+    stored = JSON.stringify([legacy])
+    const {saved, ...legacyFields} = legacy.draft
+    assert.deepEqual(load()[0].drafts, [{...legacyFields, id: 'legacy-legacy'}])
 
-    const confirmed = {...draft, move: 'Defect'}
-    const completed = {...confirmed, date: '2024-03-02'}
-    const history = [...reopened.entries, completed]
-    assert.notDeepEqual(next(history), next(reopened.entries))
-    save([{...reopened, entries: history, draft: undefined}])
-    assert.equal(load()[0].entries.length, 2)
-    assert.equal(load()[0].draft, undefined)
+    const first = {id: 'first', myMove: 'Cooperate', move: 'Defect', note: 'first request', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}
+    const second = {id: 'second', myMove: '', move: '', note: 'second request', date: '', category: 'Social', myActionDate: '', theirActionDate: ''}
+    save([{id: 'one', name: 'A person', entries: [], drafts: [first, second]}])
+    const reopened = load()[0]
+    assert.deepEqual(reopened.drafts, [first, second])
+    assert.equal(next(reopened.entries).difference, 0)
+
+    const confirmed = entry(first.myMove, first.move, first.date, first.category)
+    const remaining = reopened.drafts.filter(draft => draft.id !== first.id)
+    save([{...reopened, entries: [...reopened.entries, confirmed], drafts: remaining}])
+    const after = load()[0]
+    assert.equal(next(after.entries).difference, 1)
+    assert.deepEqual(after.drafts, [second])
   } finally {
     delete globalThis.localStorage
   }
@@ -80,7 +84,7 @@ test('save persists both action dates', () => {
   let stored
   globalThis.localStorage = {setItem: (_, value) => { stored = value }}
   try {
-    const people = [{id: 'one', name: 'A person', entries: [{...entry('Cooperate', 'Defect', '2024-03-01'), myActionDate: '2024-02-29', theirActionDate: ''}]}]
+    const people = [{id: 'one', name: 'A person', entries: [{...entry('Cooperate', 'Defect', '2024-03-01'), myActionDate: '2024-02-29', theirActionDate: ''}], drafts: []}]
     save(people)
     assert.deepEqual(JSON.parse(stored)[0].entries[0], people[0].entries[0])
   } finally {
@@ -113,7 +117,7 @@ test('calendar includes leap day and permits future dates', () => {
   globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
   try {
     const futureEntry = entry('Cooperate', 'Defect', `${future}-01`)
-    save([{id: 'future', name: 'Future round', entries: [futureEntry]}])
+    save([{id: 'future', name: 'Future round', entries: [futureEntry], drafts: []}])
     assert.equal(load()[0].entries[0].date, futureEntry.date)
   } finally {
     delete globalThis.localStorage

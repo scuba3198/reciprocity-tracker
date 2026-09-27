@@ -21,11 +21,18 @@ let moveField = (obj, name) => switch stringField(obj, name) {
 | Some("Defect") => Some(State.Defect)
 | _ => None
 }
-let decodeDraft = json => switch JSON.Decode.object(json) {
+let decodeDraft = (json, id) => switch JSON.Decode.object(json) {
 | None => None
 | Some(obj) => switch (stringField(obj, "move"), stringField(obj, "myMove"), stringField(obj, "note"), stringField(obj, "date"), stringField(obj, "category"), stringField(obj, "myActionDate"), stringField(obj, "theirActionDate")) {
   | (Some(move), Some(myMove), Some(note), Some(date), Some(category), Some(myActionDate), Some(theirActionDate)) =>
-          Some({move, myMove, note, date, category, myActionDate, theirActionDate}: State.draft)
+          Some({id, move, myMove, note, date, category, myActionDate, theirActionDate}: State.draft)
+  | _ => None
+  }
+}
+let decodeIdentifiedDraft = json => switch JSON.Decode.object(json) {
+| None => None
+| Some(obj) => switch stringField(obj, "id") {
+  | Some(id) if id->String.trim != "" => decodeDraft(json, id)
   | _ => None
   }
 }
@@ -59,18 +66,18 @@ let decodePerson = json => switch JSON.Decode.object(json) {
 | Some(obj) => switch (stringField(obj, "id"), stringField(obj, "name"), field(obj, "entries")->Option.flatMap(JSON.Decode.array)) {
   | (Some(id), Some(name), Some(entries)) => {
       let decoded = entries->Array.filterMap(decodeEntry)
-      let draft = switch field(obj, "draft") {
-      | None => Some(None)
-      | Some(value) => switch JSON.Decode.object(value) {
-        | None => Some(None)
-        | Some(draftObj) => switch field(draftObj, "saved")->Option.flatMap(JSON.Decode.bool) {
-          | Some(false) => Some(None)
-          | _ => switch decodeDraft(value) { | None => Some(None) | Some(draft) => Some(Some(draft)) }
+      let drafts = switch field(obj, "drafts") {
+      | Some(value) => value->JSON.Decode.array->Option.getOr([])->Array.filterMap(decodeIdentifiedDraft)
+      | None => switch field(obj, "draft") {
+        | None => []
+        | Some(value) => switch JSON.Decode.object(value) {
+          | Some(draftObj) if field(draftObj, "saved")->Option.flatMap(JSON.Decode.bool) == Some(false) => []
+          | _ => switch decodeDraft(value, "legacy-" ++ id) { | Some(draft) => [draft] | None => [] }
           }
         }
       }
-      if id->String.trim != "" && name->String.trim != "" && Array.length(decoded) == Array.length(entries) && draft != None {
-        let person: State.person = {id, name, entries: decoded, draft: Option.getOr(draft, None)}
+      if id->String.trim != "" && name->String.trim != "" && Array.length(decoded) == Array.length(entries) {
+        let person: State.person = {id, name, entries: decoded, drafts}
         Some(person)
       } else {
         None
@@ -109,16 +116,16 @@ let encodePeople = (people: array<State.person>) =>
       "myActionDate": entry.myActionDate,
       "theirActionDate": entry.theirActionDate,
     }),
-    "draft": {
-      "saved": person.draft != None,
-      "move": person.draft->Option.map(draft => draft.move)->Option.getOr(""),
-      "myMove": person.draft->Option.map(draft => draft.myMove)->Option.getOr(""),
-      "note": person.draft->Option.map(draft => draft.note)->Option.getOr(""),
-      "date": person.draft->Option.map(draft => draft.date)->Option.getOr(""),
-      "category": person.draft->Option.map(draft => draft.category)->Option.getOr(""),
-      "myActionDate": person.draft->Option.map(draft => draft.myActionDate)->Option.getOr(""),
-      "theirActionDate": person.draft->Option.map(draft => draft.theirActionDate)->Option.getOr(""),
-    },
+    "drafts": person.drafts->Array.map(draft => {
+      "id": draft.id,
+      "move": draft.move,
+      "myMove": draft.myMove,
+      "note": draft.note,
+      "date": draft.date,
+      "category": draft.category,
+      "myActionDate": draft.myActionDate,
+      "theirActionDate": draft.theirActionDate,
+    }),
   })
 
 let serialize = (people: array<State.person>) => stringify(encodePeople(people))

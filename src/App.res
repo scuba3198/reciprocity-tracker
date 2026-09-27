@@ -37,7 +37,8 @@ let make = () => {
   let (categoryOpen, setCategoryOpen) = React.useState(_ => false)
   let (myMove, setMyMove) = React.useState(_ => None)
   let (theirMove, setTheirMove) = React.useState(_ => None)
-  let (interactionDate, setInteractionDate) = React.useState(today)
+  let (currentDraftId, setCurrentDraftId) = React.useState(_ => Storage.randomUUID())
+  let (interactionDate, setInteractionDate) = React.useState(_ => "")
   let (myActionDate, setMyActionDate) = React.useState(_ => "")
   let (theirActionDate, setTheirActionDate) = React.useState(_ => "")
   let (actionDatesOpen, setActionDatesOpen) = React.useState(_ => false)
@@ -257,31 +258,41 @@ let make = () => {
   | "insights" => openInsights()
   | _ => openHome()
   }
+  let startNewDraft = () => {
+    setCurrentDraftId(_ => Storage.randomUUID())
+    setInteractionDate(_ => "")
+    setMyMove(_ => None)
+    setTheirMove(_ => None)
+    setNote(_ => "")
+    setCategory(_ => "")
+    setMyActionDate(_ => "")
+    setTheirActionDate(_ => "")
+    setActionDatesOpen(_ => false)
+    setDateError(_ => "")
+    setActionDateError(_ => "")
+  }
+
+  let loadDraft = (draft: State.draft) => {
+    setCurrentDraftId(_ => draft.id)
+    setInteractionDate(_ => draft.date)
+    setMyMove(_ => switch draft.myMove { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
+    setTheirMove(_ => switch draft.move { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
+    setNote(_ => draft.note)
+    setCategory(_ => draft.category)
+    setMyActionDate(_ => draft.myActionDate)
+    setTheirActionDate(_ => draft.theirActionDate)
+    setActionDatesOpen(_ => draft.myActionDate != "" || draft.theirActionDate != "")
+    setDateError(_ => "")
+    setActionDateError(_ => "")
+  }
+
   let openPerson = (person: State.person) => {
     setSelectedId(_ => person.id)
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
-    switch person.draft {
-    | Some(draft) => {
-        setInteractionDate(_ => draft.date)
-        setMyMove(_ => switch draft.myMove { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
-        setTheirMove(_ => switch draft.move { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
-        setNote(_ => draft.note)
-        setCategory(_ => draft.category)
-        setMyActionDate(_ => draft.myActionDate)
-        setTheirActionDate(_ => draft.theirActionDate)
-        setActionDatesOpen(_ => draft.myActionDate != "" || draft.theirActionDate != "")
-      }
-    | None => {
-        setInteractionDate(_ => today())
-        setMyMove(_ => None)
-        setTheirMove(_ => None)
-        setNote(_ => "")
-        setCategory(_ => "")
-        setMyActionDate(_ => "")
-        setTheirActionDate(_ => "")
-        setActionDatesOpen(_ => false)
-      }
+    switch person.drafts->Array.get(0) {
+    | Some(draft) => loadDraft(draft)
+    | None => startNewDraft()
     }
     setActionDateError(_ => "")
     setCategoryOpen(_ => false)
@@ -294,7 +305,7 @@ let make = () => {
     ReactEvent.Form.preventDefault(event)
     let name = newName->String.trim
     if name != "" {
-      let person: State.person = {id: Storage.randomUUID(), name, entries: [], draft: None}
+      let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
       commit(Array.concat(people, [person]))
       setSelectedId(_ => person.id)
       setShowInfo(_ => false)
@@ -302,7 +313,8 @@ let make = () => {
       setShowInsights(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
-      setInteractionDate(_ => today())
+      setCurrentDraftId(_ => Storage.randomUUID())
+      setInteractionDate(_ => "")
       setMyMove(_ => None)
       setTheirMove(_ => None)
       setNote(_ => "")
@@ -317,27 +329,29 @@ let make = () => {
 
   let saveDraft = (person: State.person) => {
     let draft: State.draft = {
+      id: currentDraftId,
       move: switch theirMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" },
       myMove: switch myMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" },
       note, date: interactionDate, category, myActionDate, theirActionDate,
     }
-    commit(people->Array.map(item => item.id == person.id ? {...item, draft: Some(draft)} : item))
+    commit(people->Array.map(item => {
+      if item.id == person.id {
+        let exists = item.drafts->Array.some(existing => existing.id == draft.id)
+        let drafts = item.drafts->Array.map(existing => existing.id == draft.id ? draft : existing)
+        {...item, drafts: exists ? drafts : Array.concat(drafts, [draft])}
+      } else {
+        item
+      }
+    }))
     setDateError(_ => "")
     setActionDateError(_ => "")
   }
 
   let discardDraft = (person: State.person) => {
-    commit(people->Array.map(item => item.id == person.id ? {...item, draft: None} : item))
-    setTheirMove(_ => None)
-    setMyMove(_ => None)
-    setNote(_ => "")
-    setCategory(_ => "")
-    setInteractionDate(_ => today())
-    setMyActionDate(_ => "")
-    setTheirActionDate(_ => "")
-    setActionDatesOpen(_ => false)
-    setDateError(_ => "")
-    setActionDateError(_ => "")
+    commit(people->Array.map(item => item.id == person.id
+      ? {...item, drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
+      : item))
+    startNewDraft()
   }
 
   let confirmRound = (person: State.person) => {
@@ -354,17 +368,10 @@ let make = () => {
         | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
             let entry: State.entry = {move: theirs, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
             commit(people->Array.map(item => item.id == person.id
-              ? {...item, entries: Array.concat(item.entries, [entry]), draft: None}
+              ? {...item, entries: Array.concat(item.entries, [entry]), drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
               : item))
-            setNote(_ => "")
-            setCategory(_ => "")
+            startNewDraft()
             setCategoryOpen(_ => false)
-            setMyMove(_ => None)
-            setTheirMove(_ => None)
-            setInteractionDate(_ => today())
-            setMyActionDate(_ => "")
-            setTheirActionDate(_ => "")
-            setActionDatesOpen(_ => false)
             setActionDateError(_ => "")
             setCalendarTarget(_ => "")
             setDateError(_ => "")
@@ -555,6 +562,7 @@ let make = () => {
           let decision = State.next(person.entries)
           let count = Array.length(person.entries)
           let history = person.entries->State.history->Belt.Array.reverse
+          let isSavedDraft = person.drafts->Array.some(draft => draft.id == currentDraftId)
           <div className="detail">
             <button className="text-button ledger-back" type_="button" onClick={_ => openLedger()}>{React.string("‹ All ledgers")}</button>
             <div className="detail-heading">
@@ -594,8 +602,16 @@ let make = () => {
 
             <section className="record-section">
               <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Only log an interaction when both people had a meaningful opportunity to cooperate or withhold cooperation.")}</p></div>
+              <div className="pending-drafts" ariaLabel="Pending drafts">
+                <h3>{React.string("Pending rounds")}</h3>
+                {person.drafts->Array.mapWithIndex((draft, index) => {
+                  let summary = draft.note != "" ? draft.note : draft.category != "" ? draft.category : "Incomplete round"
+                  <button key={draft.id} type_="button" className={draft.id == currentDraftId ? "draft-choice selected" : "draft-choice"} ariaPressed={draft.id == currentDraftId ? #"true" : #"false"} onClick={_ => loadDraft(draft)}>{React.string("Draft " ++ Int.toString(index + 1) ++ " · completion date to check: " ++ (draft.date == "" ? "unset" : draft.date) ++ " · " ++ summary)}</button>
+                })->React.array}
+                <button type_="button" className="text-button new-draft-button" onClick={_ => startNewDraft()}>{React.string("+ New round")}</button>
+              </div>
               <label className="note-label" htmlFor="interaction-date">{React.string("When was this round completed?")}</label>
-              <p id="completion-date-help" className="date-help">{React.string("Use the date when both people had completed, missed, or otherwise resolved their part of this reciprocal round.")}</p>
+              <p id="completion-date-help" className="date-help">{React.string("Use the date when both people completed or resolved the round. Recheck this date when confirming; the draft's creation date is not used.")}</p>
               <div className="date-row">
                 <div className="date-input-wrap">
                   <input id="interaction-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD or YYYYMMDD" value={interactionDate} maxLength=10 ariaDescribedby="completion-date-help" onClick={_ => openCalendar("round", interactionDate)} onChange={event => {setInteractionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setDateError(_ => ""); setActionDateError(_ => "")}} />
@@ -641,11 +657,11 @@ let make = () => {
                   <button type_="button" ariaPressed={theirMove == Some(State.Defect) ? #"true" : #"false"} className={theirMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == Some(State.Defect) ? None : Some(State.Defect))}>{React.string("Withheld")}</button>
                 </div>
               </div>
-              {person.draft != None ? <p className="own-move-hint">{React.string("Saved draft · edit these fields and save again, or discard it.")}</p> : React.null}
+              {isSavedDraft ? <p className="own-move-hint">{React.string("Edit this saved draft, then save, confirm, or discard it.")}</p> : React.null}
               <div className="draft-actions">
-                <button type_="button" className="move-button" onClick={_ => saveDraft(person)}>{React.string("Save draft")}</button>
+                <button type_="button" className="move-button" onClick={_ => saveDraft(person)}>{React.string(isSavedDraft ? "Save draft changes" : "Save draft")}</button>
                 <button type_="button" className="move-button cooperate" disabled={myMove == None || theirMove == None} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
-                {person.draft != None ? <button type_="button" className="move-button defect" onClick={_ => discardDraft(person)}>{React.string("Discard draft")}</button> : React.null}
+                {isSavedDraft ? <button type_="button" className="move-button defect" onClick={_ => discardDraft(person)}>{React.string("Discard draft")}</button> : React.null}
               </div>
             </section>
 
