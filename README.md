@@ -41,4 +41,4 @@ Use **Appearance** for Auto (follows the device theme), Light, or Dark. The choi
 
 Use **CURE tolerance** in Settings to switch between 1 and 2 (default). The choice is saved in this browser while signed out and in your account while signed in. If your account has no saved tolerance yet, your browser choice is copied to it. Recommendations update across the tracker.
 
-Open **How the method works** in the sidebar for the CURE rule, the optional models, worked examples, the paper, and practical scenarios where a game model may help or should not be used.
+Open **How the method works** in the sidebar for the CURE rule, the optional models, worked examples, and the paper.

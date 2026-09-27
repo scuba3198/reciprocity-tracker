@@ -1,40 +1,3 @@
-type scenario = {title: string, detail: string}
-
-let useful: array<scenario> = [
-  {title: "Roommates and housemates", detail: "A shared chore rota, quiet hours, or another specific household promise comes up repeatedly. Clarify a missed turn before counting it."},
-  {title: "Neighbors", detail: "You take turns with bins, watering plants, or small optional favors under an agreement both people understand."},
-  {title: "Adult family coordination", detail: "Relatives share low-stakes planning or errands by mutual agreement. Essential care and family obligations need different judgment."},
-  {title: "Friends and recurring plans", detail: "You agreed to alternate driving, hosting, organizing, or showing up. A pattern may matter more than one cancellation."},
-  {title: "Small favors and borrowing", detail: "You trade routine help or lend low-value items with clear terms, and either person can freely decline next time."},
-  {title: "Study partners", detail: "Peers take turns preparing material or attending planned sessions, without using the log to decide grades or access."},
-  {title: "Peer projects", detail: "Equal collaborators share noncritical tasks or handoffs. Track the agreed task, not a teammate’s overall worth."},
-  {title: "Clubs and volunteers", detail: "Members share nonessential shifts, event preparation, or routine organizing and can safely step back."},
-  {title: "Creative collaborators", detail: "Band practice, writing groups, and hobby projects have recurring, clear contributions that can be discussed when missed."},
-  {title: "Known online collaborators", detail: "A small community shares hobby project work under explicit rules. Silence from a stranger is not a broken promise."},
-  {title: "Optional time and effort", detail: "You are deciding whether to keep offering nonessential help after a specific reciprocal promise is repeatedly missed."},
-  {title: "Repair after a small lapse", detail: "You can note whether later commitments were kept after a low-stakes mistake, while deciding for yourself what repair requires."},
-  {title: "Everyday dating logistics", detail: "Only mutually agreed, low-stakes plans or practical tasks fit. Attention, affection, intimacy, and sex are never owed."},
-]
-
-let unsuitable: array<scenario> = [
-  {title: "Threats, abuse, or control", detail: "Violence, intimidation, stalking, coercion, isolation, and control of money or movement call for safety planning and support. Do not test a strategic response."},
-  {title: "A serious first breach", detail: "Assault, theft, fraud, sexual boundary violations, and dangerous negligence may justify an immediate boundary or outside help. Do not reduce these events to a game move."},
-  {title: "Consent and personal autonomy", detail: "A no, a changed mind, an ordinary delayed reply, or not sharing your feelings is not a defection. Nobody owes access to their body or affection."},
-  {title: "Emergencies and basic needs", detail: "Do not withhold urgent medical help, food, shelter, safety assistance, or essential support to mirror someone else’s behavior."},
-  {title: "Children or people in your care", detail: "Parenting, teaching, caregiving, and support for dependents come with responsibilities that do not switch off after a missed promise."},
-  {title: "Unequal power", detail: "Boss and employee, teacher and student, landlord and tenant, or clinician and patient cannot always choose freely. A ‘matching’ response can be unfair or abusive."},
-  {title: "High-stakes judgments", detail: "Never use a C/D log to decide hiring, firing, grading, housing, lending, insurance, immigration, legal outcomes, or healthcare."},
-  {title: "Contracts, debts, and rights", detail: "Pay, rent, loans, custody, and formal services depend on agreements and rights. Use the proper process, not a game strategy."},
-  {title: "One-off or anonymous encounters", detail: "The model needs repeated interaction and a shared expectation. A single encounter or a stranger’s silence provides neither."},
-  {title: "Unclear or disputed expectations", detail: "If you never agreed on the task or deadline, or remember it differently, clarify first. A disappointment is not automatically a broken agreement."},
-  {title: "Different capacity or resources", detail: "Illness, disability, caregiving, money, access, or exhaustion may change what someone can do. Revisit what is fair instead of assuming intent."},
-  {title: "Accidents and missing information", detail: "Message failures, travel delays, time zones, and misunderstandings can look like a D. Check what happened before logging it."},
-  {title: "Groups and institutions", detail: "A result caused by several people, a workplace system, or a platform cannot reliably be reduced to one person’s move."},
-  {title: "Scorekeeping or testing loyalty", detail: "If the log is becoming a way to win arguments, provoke someone, or justify punishment, stop using the rule for that situation."},
-  {title: "Sensitive records", detail: "Names and notes are stored on this device while signed out and in your private cloud ledger while signed in. Do not record details that could put someone at risk if seen."},
-  {title: "Automatic trust after harm", detail: "A few cooperative moves do not prove safety or restore trust. You may need a different form of repair, a longer boundary, or no further contact."},
-]
-
 @react.component
 let make = () =>
   <article className="info-page">
@@ -42,11 +5,6 @@ let make = () =>
       <h1>{React.string("A simple rule for a complicated thing.")}</h1>
       <p>{React.string("Good Faith uses an app-level asynchronous adaptation of CURE (cumulative reciprocity), the strategy studied by Li et al. (2022). The paper defines choices in repeated game rounds; this app's use of separate action dates for real-world events is our adaptation, not a method from or validated by Li et al. It tracks a running imbalance across recorded rounds and suggests a move. This is a decision aid you control, not a verdict about a person.")}</p>
     </header>
-
-    <nav className="info-jump" ariaLabel="On this page">
-      <a href="#when-to-use">{React.string("When it can help")}</a>
-      <a href="#when-not-to-use">{React.string("When not to use it")}</a>
-    </nav>
 
     <section className="info-section">
       <h2>{React.string("The game-theory idea")}</h2>
@@ -94,23 +52,6 @@ let make = () =>
       <h2>{React.string("Where the model stops")}</h2>
       <p>{React.string("CURE is an exact strategy for a simplified game with repeated choices and a clear C or D. Real interactions have context, unequal power, changing capacity, and unclear expectations. The study did not validate this rule for relationships, and a missed promise is not automatically a defection.")}</p>
       <p>{React.string("Use the log to notice patterns and slow down a decision. Talk, clarify, or leave a harmful situation when that fits the circumstances; the app cannot make those judgments for you.")}</p>
-    </section>
-
-    <section id="when-to-use" className="info-section scenario-section">
-      <h2>{React.string("When this can help")}</h2>
-      <p>{React.string("The best fit is repeated, low-stakes reciprocal interactions with one person. A recorded round can include an action by one person while the other has No action; when both have a relevant action, each should have a meaningful choice, understand what cooperation means, and be able to safely step back from an optional contribution. These are examples for using a decision aid, not situations validated by the cited studies.")}</p>
-      <ul className="scenario-list useful">{useful->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
-    </section>
-
-    <section id="when-not-to-use" className="info-section scenario-section info-limits">
-      <h2>{React.string("When not to use it")}</h2>
-      <p>{React.string("These situations make the two-choice model misleading, unfair, or unsafe. A suggested boundary is never an instruction to retaliate or to stay in danger.")}</p>
-      <ul className="scenario-list unsuitable">{unsuitable->Array.map(item => <li key={item.title}><strong>{React.string(item.title)}</strong><span>{React.string(item.detail)}</span></li>)->React.array}</ul>
-      <div className="scenario-check">
-        <h3>{React.string("Before you log a D")}</h3>
-        <p>{React.string("Ask: Who had a relevant action, and did that person have a meaningful, safe choice under a clear expectation? Request means someone asked for help, a favor, or cooperation; it is neutral. Legacy No action means that person had no relevant action. If neither did, leave the event out. Could the person reasonably meet the expectation? Am I treating a small disappointment as equal to a serious breach? If any answer is unclear, talk or gather context before reducing an action to C or D.")}</p>
-      </div>
-      <p className="scenario-safety">{React.string("If you feel unsafe, seek help from someone you trust or a local specialist service. For safety guidance, see the ")}<a href="https://www.who.int/news-room/fact-sheets/detail/violence-against-women" target="_blank" rel="noopener noreferrer">{React.string("World Health Organization")}</a>{React.string(" and the ")}<a href="https://www.thehotline.org/plan-for-safety/" target="_blank" rel="noopener noreferrer">{React.string("National Domestic Violence Hotline")}</a>{React.string(" (US).")}</p>
     </section>
 
     <section className="info-sources" ariaLabel="Research sources">
