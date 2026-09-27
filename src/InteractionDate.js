@@ -52,3 +52,8 @@ export function fromTimestamp(timestamp) {
 export function orderedEntries(entries) {
   return [...entries].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
 }
+
+export function orderedIndexedEntries(entries) {
+  return entries.map((entry, sourceIndex) => ({entry, sourceIndex}))
+    .sort((a, b) => a.entry.date < b.entry.date ? -1 : a.entry.date > b.entry.date ? 1 : a.sourceIndex - b.sourceIndex)
+}

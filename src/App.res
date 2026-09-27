@@ -49,6 +49,15 @@ let make = () => {
   let (deleteTargetId, setDeleteTargetId) = React.useState(_ => "")
   let (editTargetId, setEditTargetId) = React.useState(_ => "")
   let (editName, setEditName) = React.useState(_ => "")
+  let (editingEntryIndex, setEditingEntryIndex) = React.useState(_ => -1)
+  let (editMyMove, setEditMyMove) = React.useState(_ => None)
+  let (editTheirMove, setEditTheirMove) = React.useState(_ => None)
+  let (editDate, setEditDate) = React.useState(_ => "")
+  let (editMyActionDate, setEditMyActionDate) = React.useState(_ => "")
+  let (editTheirActionDate, setEditTheirActionDate) = React.useState(_ => "")
+  let (editNote, setEditNote) = React.useState(_ => "")
+  let (editCategory, setEditCategory) = React.useState(_ => "")
+  let (entryEditError, setEntryEditError) = React.useState(_ => "")
   let (userId, setUserId) = React.useState(_ => "")
   let (email, setEmail) = React.useState(_ => "")
   let (password, setPassword) = React.useState(_ => "")
@@ -81,6 +90,8 @@ let make = () => {
       setAuthError(_ => "")
       setPeople(_ => [])
       setSelectedId(_ => "")
+      setEditingEntryIndex(_ => -1)
+      setEntryEditError(_ => "")
       if id == "" {
         setPeople(_ => Storage.load())
         setCloudReady(_ => true)
@@ -287,6 +298,8 @@ let make = () => {
   }
 
   let openPerson = (person: State.person) => {
+    setEditingEntryIndex(_ => -1)
+    setEntryEditError(_ => "")
     setSelectedId(_ => person.id)
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
@@ -314,6 +327,8 @@ let make = () => {
       setAddOpen(_ => false)
       setNewName(_ => "")
       setCurrentDraftId(_ => Storage.randomUUID())
+      setEditingEntryIndex(_ => -1)
+      setEntryEditError(_ => "")
       setInteractionDate(_ => "")
       setMyMove(_ => None)
       setTheirMove(_ => None)
@@ -386,12 +401,38 @@ let make = () => {
     }}
   }
 
-  let undo = (person: State.person) => {
-    let length = Array.length(person.entries)
-    if length > 0 {
-      commit(people->Array.map(item => item.id == person.id
-        ? {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)}
-        : item))
+  let startEditEntry = (index, entry: State.entry) => {
+    setEditingEntryIndex(_ => index)
+    setEditMyMove(_ => Some(entry.myMove))
+    setEditTheirMove(_ => Some(entry.move))
+    setEditDate(_ => entry.date)
+    setEditMyActionDate(_ => entry.myActionDate)
+    setEditTheirActionDate(_ => entry.theirActionDate)
+    setEditNote(_ => entry.note)
+    setEditCategory(_ => entry.category)
+    setEntryEditError(_ => "")
+  }
+
+  let saveEntryEdit = (person: State.person) => {
+    switch (editMyMove, editTheirMove, editDate->normalizeDate->Nullable.toOption) {
+    | (Some(myMove), Some(move), Some(date)) => {
+        let myInput = editMyActionDate->String.trim
+        let theirInput = editTheirActionDate->String.trim
+        let mineDate = myInput == "" ? Some("") : myInput->normalizeDate->Nullable.toOption
+        let theirsDate = theirInput == "" ? Some("") : theirInput->normalizeDate->Nullable.toOption
+        switch (mineDate, theirsDate) {
+        | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
+            let replacement: State.entry = {move, myMove, date, myActionDate, theirActionDate, note: editNote->String.trim, category: editCategory}
+            commit(people->Array.map(item => item.id == person.id
+              ? {...item, entries: State.replaceEntry(item.entries, editingEntryIndex, replacement)}
+              : item))
+            setEditingEntryIndex(_ => -1)
+            setEntryEditError(_ => "")
+          }
+        | _ => setEntryEditError(_ => "Action dates must be real dates no later than the round completion date.")
+        }
+      }
+    | _ => setEntryEditError(_ => "Choose both moves and enter a valid completion date.")
     }
   }
 
@@ -400,6 +441,18 @@ let make = () => {
     setSelectedId(_ => "")
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
+    setEditingEntryIndex(_ => -1)
+    setEntryEditError(_ => "")
+  }
+
+  let undo = (person: State.person) => {
+    let length = Array.length(person.entries)
+    if length > 0 {
+      setEditingEntryIndex(_ => -1)
+      commit(people->Array.map(item => item.id == person.id
+        ? {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)}
+        : item))
+    }
   }
 
   let startEdit = (person: State.person) => {
@@ -409,6 +462,7 @@ let make = () => {
     setShowInsights(_ => false)
     setMobileMenuOpen(_ => false)
     setDeleteTargetId(_ => "")
+    setEditingEntryIndex(_ => -1)
     setEditName(_ => person.name)
     setEditTargetId(_ => person.id)
     scrollTo(0, 0)
@@ -421,6 +475,7 @@ let make = () => {
     setShowInsights(_ => false)
     setMobileMenuOpen(_ => false)
     setEditTargetId(_ => "")
+    setEditingEntryIndex(_ => -1)
     setDeleteTargetId(_ => person.id)
     scrollTo(0, 0)
   }
@@ -563,6 +618,7 @@ let make = () => {
           let count = Array.length(person.entries)
           let history = person.entries->State.history->Belt.Array.reverse
           let isSavedDraft = person.drafts->Array.some(draft => draft.id == currentDraftId)
+          let editCategoryKnown = switch editCategory { | "" | "Work" | "Favor" | "Commitment" | "Money" | "Social" | "Support" | "Other" => true | _ => false }
           <div className="detail">
             <button className="text-button ledger-back" type_="button" onClick={_ => openLedger()}>{React.string("‹ All ledgers")}</button>
             <div className="detail-heading">
@@ -669,11 +725,11 @@ let make = () => {
               <div className="history-heading"><div><h2>{React.string("The pattern")}</h2><p>{React.string("Most recent first")}</p></div><button className="text-button" type_="button" disabled={count == 0} onClick={_ => undo(person)}>{React.string("Undo last entry")}</button></div>
               {count == 0
                 ? <p className="history-empty">{React.string("No moves yet. Start with their next interaction.")}</p>
-                : <ol className="history-list">{history->Array.mapWithIndex((item, index) => {
+                : <ol className="history-list">{history->Array.map(item => {
                     let entry = item.entry
                     let different = entry.myMove != item.recommended
                     let hasActionDates = entry.myActionDate != "" || entry.theirActionDate != ""
-                    <li key={Int.toString(index)} className={moveClass(entry.move)}>
+                    <li key={Int.toString(item.sourceIndex)} className={moveClass(entry.move)}>
                       <span className="history-symbol">{React.string(entry.move == State.Cooperate ? "C" : "D")}</span>
                       <div>
                         <strong>{React.string("They " ++ State.label(entry.move)->String.toLowerCase)}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}
@@ -686,6 +742,29 @@ let make = () => {
                             </div>
                           : React.null}
                         {entry.note != "" ? <p>{React.string(entry.note)}</p> : React.null}
+                        <button className="text-button entry-edit-toggle" type_="button" ariaExpanded={editingEntryIndex == item.sourceIndex} onClick={_ => editingEntryIndex == item.sourceIndex ? setEditingEntryIndex(_ => -1) : startEditEntry(item.sourceIndex, entry)}>{React.string("Edit entry")}</button>
+                        {editingEntryIndex == item.sourceIndex
+                          ? <form className="entry-edit-form" ariaLabel="Edit confirmed entry" onSubmit={event => {ReactEvent.Form.preventDefault(event); saveEntryEdit(person)}}>
+                              <label htmlFor="edit-my-move">{React.string("Your move")}</label>
+                              <select id="edit-my-move" value={switch editMyMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" }} onChange={event => setEditMyMove(_ => switch JsxEvent.Form.target(event)["value"] { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })}>
+                                <option value="">{React.string("Choose a move")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Withheld")}</option>
+                              </select>
+                              <label htmlFor="edit-their-move">{React.string("Their move")}</label>
+                              <select id="edit-their-move" value={switch editTheirMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" }} onChange={event => setEditTheirMove(_ => switch JsxEvent.Form.target(event)["value"] { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })}>
+                                <option value="">{React.string("Choose a move")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Withheld")}</option>
+                              </select>
+                              <label htmlFor="edit-round-date">{React.string("Completion date")}</label><input id="edit-round-date" type_="date" required=true value={editDate} onChange={event => setEditDate(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-my-action-date">{React.string("Your action date (optional)")}</label><input id="edit-my-action-date" type_="date" value={editMyActionDate} onChange={event => setEditMyActionDate(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-their-action-date">{React.string("Their action date (optional)")}</label><input id="edit-their-action-date" type_="date" value={editTheirActionDate} onChange={event => setEditTheirActionDate(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-entry-note">{React.string("Note (optional)")}</label><input id="edit-entry-note" type_="text" maxLength=180 value={editNote} onChange={event => setEditNote(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-entry-category">{React.string("Category (optional)")}</label><select id="edit-entry-category" value={editCategory} onChange={event => setEditCategory(_ => JsxEvent.Form.target(event)["value"])}>
+                                {!editCategoryKnown ? <option value={editCategory}>{React.string(editCategory)}</option> : React.null}
+                                <option value="">{React.string("None")}</option><option value="Work">{React.string("Work")}</option><option value="Favor">{React.string("Favor")}</option><option value="Commitment">{React.string("Commitment")}</option><option value="Money">{React.string("Money")}</option><option value="Social">{React.string("Social")}</option><option value="Support">{React.string("Support")}</option><option value="Other">{React.string("Other")}</option>
+                              </select>
+                              {entryEditError != "" ? <p className="date-error" role="alert">{React.string(entryEditError)}</p> : React.null}
+                              <div className="entry-edit-actions"><button type_="submit">{React.string("Save changes")}</button><button type_="button" onClick={_ => {setEditingEntryIndex(_ => -1); setEntryEditError(_ => "")}}>{React.string("Cancel")}</button></div>
+                            </form>
+                          : React.null}
                       </div>
                       {!hasActionDates ? <time>{React.string(entry.date)}</time> : React.null}
                     </li>

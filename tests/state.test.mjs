@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry} from '../src/State.res.mjs'
 import {load, save} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
@@ -32,6 +32,21 @@ test('CURE remembers the full history and recomputes the advice before each roun
     [[0, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect'], [1, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect']])
   assert.equal(next(rounds).move, 'Defect')
   assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
+})
+
+test('history edits map duplicate-date rows to the exact source entry and recompute CURE', () => {
+  const entries = [
+    {...entry('Cooperate', 'Defect', '2024-03-01'), note: 'first'},
+    {...entry('Cooperate', 'Defect', '2024-03-01'), note: 'second'},
+  ]
+  const selected = history(entries).find(item => item.entry.note === 'second')
+  assert.equal(selected.sourceIndex, 1)
+  const replacement = {...entries[1], myMove: 'Cooperate', move: 'Cooperate'}
+  const updated = replaceEntry(entries, selected.sourceIndex, replacement)
+  assert.equal(updated[0].note, 'first')
+  assert.equal(updated[1].note, 'second')
+  assert.equal(next(entries).difference, 2)
+  assert.equal(next(updated).difference, 1)
 })
 
 test('CURE starts a fresh ledger and loads only its new storage key', () => {
