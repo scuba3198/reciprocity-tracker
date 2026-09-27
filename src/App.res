@@ -629,16 +629,16 @@ let make = () => {
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did you do? (required for CURE)")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
-                  <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
-                  <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
+                  <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(previous => previous == Some(State.Cooperate) ? None : Some(State.Cooperate))}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(previous => previous == Some(State.Defect) ? None : Some(State.Defect))}>{React.string("Withheld")}</button>
                 </div>
                 {myMove == None ? <p className="own-move-hint">{React.string("Choose both moves before confirming the round.")}</p> : React.null}
               </div>
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did they do? (required for CURE)")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Their move in this interaction">
-                  <button type_="button" ariaPressed={theirMove == Some(State.Cooperate) ? #"true" : #"false"} className={theirMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setTheirMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
-                  <button type_="button" ariaPressed={theirMove == Some(State.Defect) ? #"true" : #"false"} className={theirMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setTheirMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
+                  <button type_="button" ariaPressed={theirMove == Some(State.Cooperate) ? #"true" : #"false"} className={theirMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == Some(State.Cooperate) ? None : Some(State.Cooperate))}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={theirMove == Some(State.Defect) ? #"true" : #"false"} className={theirMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == Some(State.Defect) ? None : Some(State.Defect))}>{React.string("Withheld")}</button>
                 </div>
               </div>
               {person.draft != None ? <p className="own-move-hint">{React.string("Saved draft · edit these fields and save again, or discard it.")}</p> : React.null}
