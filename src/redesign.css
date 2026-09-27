@@ -123,6 +123,18 @@ html[data-theme="dark"] .decision-panel.defect { background: #33251f; }
 .own-move-options { gap: 10px; }
 .own-move-options button, .own-move-options button:hover, .own-move-options button.selected, html[data-theme="dark"] .own-move-options button, html[data-theme="dark"] .own-move-options button:hover, html[data-theme="dark"] .own-move-options button.selected { min-width: 135px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
 .own-move-options button.selected, html[data-theme="dark"] .own-move-options button.selected { background: var(--surface-soft); border-color: var(--green); color: var(--ink); }
+.own-move-options button.action-cooperate { background: #e5f2e7; border-color: #87b995; color: #245c38; }
+.own-move-options button.action-defect { background: #fae9e7; border-color: #dca49e; color: #923f3c; }
+.own-move-options button.action-request { background: #e9eef4; border-color: #aebccd; color: #40536b; }
+.own-move-options button.action-cooperate.selected { background: #285a40; border-color: #285a40; color: #fff; }
+.own-move-options button.action-defect.selected { background: #a44745; border-color: #a44745; color: #fff; }
+.own-move-options button.action-request.selected { background: #4e6078; border-color: #4e6078; color: #fff; }
+html[data-theme="dark"] .own-move-options button.action-cooperate { background: #254534; border-color: #5f9c70; color: #c8e8ce; }
+html[data-theme="dark"] .own-move-options button.action-defect { background: #492a29; border-color: #aa6660; color: #ffc5bd; }
+html[data-theme="dark"] .own-move-options button.action-request { background: #293747; border-color: #71879f; color: #d7e5f5; }
+html[data-theme="dark"] .own-move-options button.action-cooperate.selected { background: #a8d6ad; border-color: #a8d6ad; color: #102319; }
+html[data-theme="dark"] .own-move-options button.action-defect.selected { background: #eea59e; border-color: #eea59e; color: #281816; }
+html[data-theme="dark"] .own-move-options button.action-request.selected { background: #adbed3; border-color: #adbed3; color: #172332; }
 .own-move-hint { color: var(--muted); }
 .move-buttons { gap: 12px; margin-top: 22px; }
 .move-button, .move-button.defect, .move-button:hover, html[data-theme="dark"] .move-button, html[data-theme="dark"] .move-button.defect, html[data-theme="dark"] .move-button:hover { min-height: 56px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }

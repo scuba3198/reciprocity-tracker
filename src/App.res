@@ -741,9 +741,9 @@ let make = () => {
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did you do?")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Your move in this interaction">
-                  <button type_="button" ariaPressed={myMove == "Cooperate" ? #"true" : #"false"} className={myMove == "Cooperate" ? "selected" : ""} onClick={_ => setMyMove(previous => previous == "Cooperate" ? "" : "Cooperate")}>{React.string("Cooperated")}</button>
-                  <button type_="button" ariaPressed={myMove == "Defect" ? #"true" : #"false"} className={myMove == "Defect" ? "selected" : ""} onClick={_ => setMyMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
-                  <button type_="button" ariaPressed={myMove == "Request" ? #"true" : #"false"} className={myMove == "Request" ? "selected" : ""} onClick={_ => setMyMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
+                  <button type_="button" ariaPressed={myMove == "Cooperate" ? #"true" : #"false"} className={"action-cooperate" ++ (myMove == "Cooperate" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Cooperate" ? "" : "Cooperate")}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={myMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (myMove == "Defect" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
+                  <button type_="button" ariaPressed={myMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (myMove == "Request" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   {myMove == "NoAction" ? <button type_="button" ariaPressed=#"true" className="selected" onClick={_ => {setMyMove(_ => ""); setMyActionDate(_ => "")}}>{React.string("No action (older draft)")}</button> : React.null}
                 </div>
                 {myMove == "" ? <p className="own-move-hint">{React.string("Choose an action for each person before confirming.")}</p> : React.null}
@@ -754,9 +754,9 @@ let make = () => {
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did they do?")}</p>
                 <div className="own-move-options" role="group" ariaLabel="Their move in this interaction">
-                  <button type_="button" ariaPressed={theirMove == "Cooperate" ? #"true" : #"false"} className={theirMove == "Cooperate" ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == "Cooperate" ? "" : "Cooperate")}>{React.string("Cooperated")}</button>
-                  <button type_="button" ariaPressed={theirMove == "Defect" ? #"true" : #"false"} className={theirMove == "Defect" ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
-                  <button type_="button" ariaPressed={theirMove == "Request" ? #"true" : #"false"} className={theirMove == "Request" ? "selected" : ""} onClick={_ => setTheirMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
+                  <button type_="button" ariaPressed={theirMove == "Cooperate" ? #"true" : #"false"} className={"action-cooperate" ++ (theirMove == "Cooperate" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Cooperate" ? "" : "Cooperate")}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={theirMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (theirMove == "Defect" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
+                  <button type_="button" ariaPressed={theirMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "Request" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   {theirMove == "NoAction" ? <button type_="button" ariaPressed=#"true" className="selected" onClick={_ => {setTheirMove(_ => ""); setTheirActionDate(_ => "")}}>{React.string("No action (older draft)")}</button> : React.null}
                 </div>
               </div>
