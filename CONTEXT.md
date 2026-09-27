@@ -8,10 +8,13 @@ Good Faith tracks reciprocal choices between the user and each person they inter
 An individual whose reciprocal interactions with the user form one history.
 
 **Round**:
-One recorded interaction with another person. The app's real-world extension allows one person's action to be absent; at least one person must have cooperated or withheld. CURE's original game rounds have two C/D moves.
+One recorded interaction with another person. The app's real-world extension allows a Request or a legacy No action status; a confirmed round must contain at least one Cooperated or Defected status. A Request-only interaction remains a draft until a Cooperated or Defected response/action exists. CURE's original game rounds have two C/D moves.
+
+**Request**:
+A neutral status meaning the person asked for help, a favor, or cooperation. It adds no defection to CURE, is not cooperation, and can have an action date. A request alone creates no obligation.
 
 **No action**:
-The person had no relevant move in a recorded interaction. It is neither cooperation nor defection and differs from an action the user has not yet classified in a draft.
+For legacy saved entries, the person had no relevant move in a recorded interaction. It is neither cooperation nor defection and differs from Request. Preserve existing No action entries as this distinct meaning; never silently relabel them as Request.
 
 **Defection**:
 A choice to withhold cooperation under a clear, meaningful expectation. Inability to act and a safety boundary are not defections.
@@ -35,10 +38,10 @@ A provisional interaction record. It does not enter the person's history or affe
 An optional label for the context of a round. It does not divide a person's CURE history.
 
 **CURE**:
-A cumulative reciprocity strategy where d is their total defections minus yours. It recommends cooperation when d is at most the chosen tolerance (one or two, default two); otherwise it recommends withholding cooperation. No action adds no defection, and each defection has equal weight regardless of stakes.
+A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one or two, default two); otherwise it recommends withholding cooperation. Request and legacy No action add no defection; each defection has equal weight regardless of stakes.
 
 **Decision analysis**:
 An optional comparison of the two choices using estimated responses and user-rated stakes. Its payoff mapping is illustrative and subjective; it does not replace CURE's recommendation.
 
 **Behavior estimate**:
-A descriptive association between the person's cooperation and each of the user's two choices across interactions where both had recorded actions, regardless of who acted first. It does not claim that the user's choice caused the person's choice.
+A descriptive association between the person's cooperation and each of the user's two choices across confirmed bilateral C/D interactions only, regardless of who acted first. Request, legacy No action, and drafts are not observations. It does not claim that the user's choice caused the person's choice.

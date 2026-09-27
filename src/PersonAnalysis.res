@@ -57,16 +57,16 @@ let make = (~entries: array<State.entry>, ~cure: State.move) => {
         : React.null}
       <div className="behavior-estimates">
         <div><span>{React.string("When you cooperate")}</span><strong>{React.string(percent(cooperate.probability) ++ " estimated cooperation")}</strong><small>{React.string(interactionCount(cooperate.observed) ++ " · " ++ cooperate.evidence ++ " history")}</small></div>
-        <div><span>{React.string("When you withhold cooperation")}</span><strong>{React.string(percent(defect.probability) ++ " estimated cooperation")}</strong><small>{React.string(interactionCount(defect.observed) ++ " · " ++ defect.evidence ++ " history")}</small></div>
+        <div><span>{React.string("When you defect")}</span><strong>{React.string(percent(defect.probability) ++ " estimated cooperation")}</strong><small>{React.string(interactionCount(defect.observed) ++ " · " ++ defect.evidence ++ " history")}</small></div>
       </div>
       {selectedCategory != "" ? <p>{React.string("Category estimates use this person's overall history when category history is sparse.")}</p> : React.null}
-      <p>{React.string("Learned behavior uses only interactions where both people had recorded actions. Evidence labels describe sample size, not statistical confidence.")}</p>
+      <p>{React.string("Learned behavior uses only interactions where both people were classified as Cooperated or Defected. Requested and older No action records do not count as evidence. Evidence labels describe sample size, not statistical confidence.")}</p>
     </details>
     <button className="analysis-toggle" type_="button" ariaExpanded={analysisOpen} ariaControls="decision-analysis" onClick={_ => setOpen(previous => !previous)}>{React.string(analysisOpen ? "Close decision analysis" : "Help me decide")}</button>
     {analysisOpen
       ? <section id="decision-analysis" className="analysis-panel" ariaLabel="Decision analysis">
           <h2>{React.string("Decision analysis")}</h2>
-          <p>{React.string("Choose the stakes for your next choice with this person: cooperate or withhold cooperation. These ratings change only this optional comparison, not CURE or any interaction you log. All start at 3.")}</p>
+          <p>{React.string("Choose the stakes for your next choice with this person: cooperate or defect. These ratings change only this optional comparison, not CURE or any interaction you log. All start at 3.")}</p>
           {Array.length(categories) > 0
             ? <label className="analysis-category" htmlFor="decision-category"><span>{React.string("Category")}</span><select id="decision-category" value={selectedCategory} onChange={event => setCategory(_ => JsxEvent.Form.target(event)["value"])}><option value="">{React.string("All categories")}</option>{categories->Array.map(name => <option key={name} value={name}>{React.string(name)}</option>)->React.array}</select></label>
             : React.null}
@@ -80,11 +80,11 @@ let make = (~entries: array<State.entry>, ~cure: State.move) => {
             <p><strong>{React.string("CURE recommendation: " ++ label(cure))}</strong></p>
             <p><strong>{React.string("Decision-model recommendation: " ++ switch result.move { | Some(move) => label(move) | None => "No clear advantage" })}</strong></p>
             <p>{React.string("Estimated response if you cooperate: " ++ percent(cooperate.probability) ++ " cooperate (" ++ interactionCount(cooperate.observed) ++ ").")}</p>
-            <p>{React.string("Estimated response if you withhold cooperation: " ++ percent(defect.probability) ++ " cooperate (" ++ interactionCount(defect.observed) ++ ").")}</p>
-            <p>{React.string("Expected utility · Cooperate: " ++ score(result.cooperateUtility) ++ " · Withhold: " ++ score(result.defectUtility))}</p>
+            <p>{React.string("Estimated response if you defect: " ++ percent(defect.probability) ++ " cooperate (" ++ interactionCount(defect.observed) ++ ").")}</p>
+            <p>{React.string("Expected utility · Cooperate: " ++ score(result.cooperateUtility) ++ " · Defect: " ++ score(result.defectUtility))}</p>
             <p>{React.string(result.explanation)}</p>
             {cooperate.observed < 6 || defect.observed < 6
-              ? <p className="analysis-caution">{React.string("Confidence: Low — " ++ (defect.observed < 6 ? "limited history of how this person responds when you withhold cooperation." : "limited history of how this person responds when you cooperate.") ++ " This describes evidence volume, not a statistical confidence interval.")}</p>
+              ? <p className="analysis-caution">{React.string("Confidence: Low — " ++ (defect.observed < 6 ? "limited history of how this person responds when you defect." : "limited history of how this person responds when you cooperate.") ++ " This describes evidence volume, not a statistical confidence interval.")}</p>
               : React.null}
             {switch result.move {
             | Some(move) if move != cure => <p className="analysis-disagreement">{React.string("These recommendations disagree. CURE responds to cumulative reciprocity; decision analysis responds to estimated behavior and the stakes you entered.")}</p>

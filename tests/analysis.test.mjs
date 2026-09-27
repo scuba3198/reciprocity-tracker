@@ -3,7 +3,8 @@ import test from 'node:test'
 import {estimate, evidenceLabel} from '../src/Bayesian.res.mjs'
 import {defaults, decide, expectedUtility, utility} from '../src/DecisionAnalysis.res.mjs'
 
-const entry = (mine, theirs, category = '', date = '2024-01-01') => ({myMove: mine === 'NoAction' ? undefined : mine, move: theirs === 'NoAction' ? undefined : theirs, category, note: '', date, myActionDate: '', theirActionDate: ''})
+const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', NoAction: 'NoAction'})[value]
+const entry = (mine, theirs, category = '', date = '2024-01-01') => ({myMove: action(mine), move: action(theirs), category, note: '', date, myActionDate: '', theirActionDate: ''})
 
 test('conditional estimates use Beta(1,1) and condition on my move', () => {
   const entries = [entry('Cooperate', 'Cooperate'), entry('Cooperate', 'Defect'), entry('Defect', 'Cooperate')]
@@ -28,7 +29,7 @@ test('category estimate pools toward the matching overall conditional estimate',
   assert.deepEqual(estimate(backdated, 'Cooperate', 'A'), estimate([...backdated].reverse(), 'Cooperate', 'A'))
 })
 
-test('Bayesian estimates exclude one-sided NoAction observations', () => {
+test('Bayesian estimates exclude Request and NoAction observations on either side', () => {
   const bilateral = [
     entry('Cooperate', 'Cooperate', 'Favor'),
     entry('Cooperate', 'Defect', 'Favor'),
@@ -40,6 +41,10 @@ test('Bayesian estimates exclude one-sided NoAction observations', () => {
     entry('Defect', 'NoAction', 'Favor'),
     entry('NoAction', 'Cooperate', 'Favor'),
     entry('NoAction', 'Defect', 'Favor'),
+    entry('Cooperate', 'Request', 'Favor'),
+    entry('Defect', 'Request', 'Favor'),
+    entry('Request', 'Cooperate', 'Favor'),
+    entry('Request', 'Defect', 'Favor'),
   ]
   for (const myMove of ['Cooperate', 'Defect']) {
     for (const category of [undefined, 'Favor']) {

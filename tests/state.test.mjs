@@ -1,20 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
-const action = value => value === 'NoAction' ? undefined : value
+const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', NoAction: 'NoAction'})[value]
 const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
 
-test('one-sided choices are valid, both NoAction is rejected, and choices map to optional moves', () => {
+test('choices map to actions and require at least one C/D action', () => {
   assert.equal(validChoices('Cooperate', 'NoAction'), true)
   assert.equal(validChoices('NoAction', 'Defect'), true)
   assert.equal(validChoices('NoAction', 'NoAction'), false)
+  assert.equal(validChoices('Request', 'Cooperate'), true)
+  assert.equal(validChoices('Cooperate', 'Request'), true)
+  assert.equal(validChoices('Request', 'Request'), false)
   assert.equal(validChoices('invalid', 'Cooperate'), false)
-  assert.equal(actionFromChoice('Cooperate'), 'Cooperate')
-  assert.equal(actionFromChoice('Defect'), 'Defect')
-  assert.equal(actionFromChoice('NoAction'), undefined)
+  assert.equal(actionFromChoice('Cooperate'), 'Cooperated')
+  assert.equal(actionFromChoice('Defect'), 'Defected')
+  assert.equal(actionFromChoice('Request'), 'Requested')
+  assert.equal(actionFromChoice('NoAction'), 'NoAction')
+  assert.equal(actionFromChoice(''), undefined)
+  assert.deepEqual(['Cooperated', 'Defected', 'Requested', 'NoAction'].map(choiceFromAction), ['Cooperate', 'Defect', 'Request', 'NoAction'])
 })
 
 test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
@@ -82,6 +88,8 @@ test('one-sided defection changes CURE only for the acting side; edits and backd
   for (const [mine, theirs, difference] of [
     ['NoAction', 'Cooperate', 0], ['NoAction', 'Defect', 1],
     ['Cooperate', 'NoAction', 0], ['Defect', 'NoAction', -1],
+    ['Request', 'Cooperate', 0], ['Request', 'Defect', 1],
+    ['Cooperate', 'Request', 0], ['Defect', 'Request', -1],
     ['Cooperate', 'Cooperate', 0], ['Cooperate', 'Defect', 1],
     ['Defect', 'Cooperate', -1], ['Defect', 'Defect', 0],
   ]) assert.equal(next([entry(mine, theirs, '2024-03-01')]).difference, difference)
@@ -104,7 +112,7 @@ test('history edits map duplicate-date rows to the exact source entry and recomp
   ]
   const selected = history(entries).find(item => item.entry.note === 'second')
   assert.equal(selected.sourceIndex, 1)
-  const replacement = {...entries[1], myMove: 'Cooperate', move: 'Cooperate'}
+  const replacement = {...entries[1], myMove: action('Cooperate'), move: action('Cooperate')}
   const updated = replaceEntry(entries, selected.sourceIndex, replacement)
   assert.equal(updated[0].note, 'first')
   assert.equal(updated[1].note, 'second')
@@ -113,13 +121,13 @@ test('history edits map duplicate-date rows to the exact source entry and recomp
 })
 
 test('CURE starts a fresh ledger and loads only its new storage key', () => {
-  const people = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01')], drafts: []}]
+  const people = [{id: 'one', name: 'A person', entries: [{myMove: 'Cooperate', move: 'Defect', note: '', date: '2024-03-01', category: '', myActionDate: '', theirActionDate: ''}], drafts: []}]
   const saved = {'good-faith.people.v1': JSON.stringify(people)}
   globalThis.localStorage = {getItem: key => saved[key] ?? null}
   try {
     assert.deepEqual(load(), [])
     saved['good-faith.people.v2'] = JSON.stringify(people)
-    assert.deepEqual(load(), people)
+    assert.deepEqual(load()[0].entries, [entry('Cooperate', 'Defect', '2024-03-01')])
     const legacy = JSON.parse(saved['good-faith.people.v2'])
     delete legacy[0].entries[0].category
     saved['good-faith.people.v2'] = JSON.stringify(legacy)
@@ -143,9 +151,12 @@ test('multiple drafts roundtrip, migrate a legacy draft, and confirm independent
     const first = {id: 'first', myMove: 'Cooperate', move: 'Defect', note: 'first request', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}
     const second = {id: 'second', myMove: '', move: 'NoAction', note: 'second request', date: '', category: 'Social', myActionDate: '', theirActionDate: ''}
     const third = {id: 'third', myMove: 'Defect', move: 'Cooperate', note: '', date: '', category: '', myActionDate: '', theirActionDate: ''}
-    save([{id: 'one', name: 'A person', entries: [], drafts: [first, second, third]}])
+    const fourth = {id: 'fourth', myMove: 'Request', move: '', note: '', date: '', category: '', myActionDate: '2024-03-01', theirActionDate: ''}
+    save([{id: 'one', name: 'A person', entries: [], drafts: [first, second, third, fourth]}])
     const reopened = load()[0]
-    assert.deepEqual(reopened.drafts, [first, second, third])
+    assert.deepEqual(reopened.drafts, [first, second, third, fourth])
+    assert.equal(reopened.drafts[3].myMove, 'Request')
+    assert.equal(reopened.drafts[3].move, '')
     assert.equal(next(reopened.entries).difference, 0)
 
     const confirmed = entry(first.myMove, first.move, first.date, first.category)
@@ -153,7 +164,7 @@ test('multiple drafts roundtrip, migrate a legacy draft, and confirm independent
     save([{...reopened, entries: [...reopened.entries, confirmed], drafts: remaining}])
     const after = load()[0]
     assert.equal(next(after.entries).difference, 1)
-    assert.deepEqual(after.drafts, [second, third])
+    assert.deepEqual(after.drafts, [second, third, fourth])
   } finally {
     delete globalThis.localStorage
   }
@@ -165,21 +176,29 @@ test('save persists both action dates', () => {
   try {
     const people = [{id: 'one', name: 'A person', entries: [{...entry('Cooperate', 'Defect', '2024-03-01'), myActionDate: '2024-02-29', theirActionDate: ''}], drafts: []}]
     save(people)
-    assert.deepEqual(JSON.parse(stored)[0].entries[0], people[0].entries[0])
+    assert.deepEqual(JSON.parse(stored)[0].entries[0], {
+      myMove: 'Cooperate', move: 'Defect', note: '', date: '2024-03-01', category: '', myActionDate: '2024-02-29', theirActionDate: '',
+    })
   } finally {
     delete globalThis.localStorage
   }
 })
 
-test('one-sided NoAction entries roundtrip through storage as NoAction strings', () => {
+test('NoAction remains legacy NoAction and Request roundtrips distinctly', () => {
   let stored
   globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
   try {
-    const people = [{id: 'one', name: 'A person', entries: [entry('NoAction', 'Defect', '2024-03-01'), entry('Cooperate', 'NoAction', '2024-03-02')], drafts: []}]
+    const people = [{id: 'one', name: 'A person', entries: [entry('NoAction', 'Defect', '2024-03-01'), entry('Cooperate', 'NoAction', '2024-03-02'), entry('Request', 'Cooperate', '2024-03-03')], drafts: []}]
     save(people)
     assert.equal(JSON.parse(stored)[0].entries[0].myMove, 'NoAction')
     assert.equal(JSON.parse(stored)[0].entries[1].move, 'NoAction')
+    assert.equal(JSON.parse(stored)[0].entries[2].myMove, 'Request')
     assert.deepEqual(load(), people)
+    const legacy = JSON.parse(stored)
+    legacy[0].entries[0].myMove = 'NoAction'
+    globalThis.localStorage.getItem = () => JSON.stringify(legacy)
+    assert.equal(load()[0].entries[0].myMove, 'NoAction')
+    assert.equal(load()[0].entries[0].move, 'Defected')
     for (const invalid of [undefined, 'garbage', null]) {
       const bad = JSON.parse(stored)
       if (invalid === undefined) delete bad[0].entries[0].myMove
@@ -187,6 +206,24 @@ test('one-sided NoAction entries roundtrip through storage as NoAction strings',
       globalThis.localStorage.getItem = () => JSON.stringify(bad)
       assert.deepEqual(load(), [])
     }
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('request action dates are allowed, while legacy NoAction dates are rejected', () => {
+  let stored
+  globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
+  try {
+    const person = {id: 'one', name: 'A person', entries: [
+      {...entry('Request', 'Cooperate', '2024-03-02'), myActionDate: '2024-03-01'},
+    ], drafts: []}
+    save([person])
+    assert.deepEqual(load(), [person])
+    const invalid = JSON.parse(stored)
+    invalid[0].entries[0].myMove = 'NoAction'
+    globalThis.localStorage.getItem = () => JSON.stringify(invalid)
+    assert.deepEqual(load(), [])
   } finally {
     delete globalThis.localStorage
   }

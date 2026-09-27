@@ -23,12 +23,12 @@ let expectedUtility = (parameters, probabilityTheyCooperate, mine) =>
 let decide = (parameters, pTheyCooperateGivenMyCooperate, pTheyCooperateGivenMyDefect): decision => {
   let cooperateUtility = expectedUtility(parameters, pTheyCooperateGivenMyCooperate, State.Cooperate)
   let defectUtility = expectedUtility(parameters, pTheyCooperateGivenMyDefect, State.Defect)
-  let details = "With value " ++ score(parameters.value) ++ ", cooperation cost " ++ score(parameters.cost) ++ ", exploitation cost " ++ score(parameters.exploitation) ++ ", and relationship importance " ++ score(parameters.relationship) ++ ", they are estimated to cooperate " ++ percent(pTheyCooperateGivenMyCooperate) ++ " if you cooperate and " ++ percent(pTheyCooperateGivenMyDefect) ++ " if you withhold. Expected utilities are " ++ score(cooperateUtility) ++ " for Cooperate and " ++ score(defectUtility) ++ " for Withhold. "
+  let details = "With value " ++ score(parameters.value) ++ ", cooperation cost " ++ score(parameters.cost) ++ ", exploitation cost " ++ score(parameters.exploitation) ++ ", and relationship importance " ++ score(parameters.relationship) ++ ", they are estimated to cooperate " ++ percent(pTheyCooperateGivenMyCooperate) ++ " if you cooperate and " ++ percent(pTheyCooperateGivenMyDefect) ++ " if you defect. Expected utilities are " ++ score(cooperateUtility) ++ " for Cooperate and " ++ score(defectUtility) ++ " for Defect. "
   if cooperateUtility == defectUtility {
     {move: None, cooperateUtility, defectUtility, explanation: details ++ "They tie, so neither move has a clear advantage."}
   } else if cooperateUtility > defectUtility {
     {move: Some(State.Cooperate), cooperateUtility, defectUtility, explanation: details ++ "Cooperate has higher expected utility."}
   } else {
-    {move: Some(State.Defect), cooperateUtility, defectUtility, explanation: details ++ "Withhold has higher expected utility."}
+    {move: Some(State.Defect), cooperateUtility, defectUtility, explanation: details ++ "Defect has higher expected utility."}
   }
 }

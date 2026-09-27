@@ -8,12 +8,13 @@ let evidenceLabel = count =>
   else {"Strong"}
 
 let countFor = (entries: array<State.entry>, myMove, category) => {
+  let myAction = myMove == State.Cooperate ? State.Cooperated : State.Defected
   entries->Array.reduce((0, 0), (counts, entry) =>
-    if entry.myMove != Some(myMove) || entry.move == None || (category != "" && entry.category != category) {
+    if entry.myMove != myAction || (entry.move != State.Cooperated && entry.move != State.Defected) || (category != "" && entry.category != category) {
       counts
     } else {
       let (cooperations, total) = counts
-      (cooperations + (if entry.move == Some(State.Cooperate) {1} else {0}), total + 1)
+      (cooperations + (if entry.move == State.Cooperated {1} else {0}), total + 1)
     }
   )
 }

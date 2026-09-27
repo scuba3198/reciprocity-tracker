@@ -1,5 +1,6 @@
 type move = Cooperate | Defect
-type entry = {move: option<move>, myMove: option<move>, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
+type action = Cooperated | Defected | Requested | NoAction
+type entry = {move: action, myMove: action, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type draft = {id: string, move: string, myMove: string, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type person = {id: string, name: string, entries: array<entry>, drafts: array<draft>}
 type historyItem = {entry: entry, recommended: move, differenceBefore: int, sourceIndex: int}
@@ -11,21 +12,25 @@ type decision = {move: move, rule: string, explanation: string, difference: int}
 
 // Li et al. (2022): d is their total defections minus yours, before the next round.
 let update = (difference, entry: entry) =>
-  difference + (entry.move == Some(Defect) ? 1 : 0) - (entry.myMove == Some(Defect) ? 1 : 0)
+  difference + (entry.move == Defected ? 1 : 0) - (entry.myMove == Defected ? 1 : 0)
 
 let actionFromChoice = choice => switch choice {
-| "Cooperate" => Some(Cooperate)
-| "Defect" => Some(Defect)
+| "Cooperate" => Some(Cooperated)
+| "Defect" => Some(Defected)
+| "Request" => Some(Requested)
+| "NoAction" => Some(NoAction)
 | _ => None
 }
 let choiceFromAction = action => switch action {
-| Some(Cooperate) => "Cooperate"
-| Some(Defect) => "Defect"
-| None => "NoAction"
+| Cooperated => "Cooperate"
+| Defected => "Defect"
+| Requested => "Request"
+| NoAction => "NoAction"
 }
 let validChoices = (mine, theirs) => {
-  let chosen = choice => choice == "Cooperate" || choice == "Defect" || choice == "NoAction"
-  chosen(mine) && chosen(theirs) && (mine != "NoAction" || theirs != "NoAction")
+  let chosen = choice => choice == "Cooperate" || choice == "Defect" || choice == "Request" || choice == "NoAction"
+  let acted = choice => choice == "Cooperate" || choice == "Defect"
+  chosen(mine) && chosen(theirs) && (acted(mine) || acted(theirs))
 }
 
 let decide = (difference, tolerance) => {
@@ -52,4 +57,4 @@ let history = (entries: array<entry>, ~tolerance=2): array<historyItem> => {
 let replaceEntry = (entries: array<entry>, index: int, replacement: entry) =>
   entries->Array.mapWithIndex((entry, current) => current == index ? replacement : entry)
 
-let actionLabel = action => switch action { | Some(Cooperate) => "Cooperated" | Some(Defect) => "Withheld" | None => "No action" }
+let actionLabel = action => switch action { | Cooperated => "Cooperated" | Defected => "Defected" | Requested => "Requested" | NoAction => "No action (older entry)" }
