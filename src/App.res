@@ -631,7 +631,7 @@ let make = () => {
           {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
         </section>
       } else if showDashboard {
-        <Dashboard people={sortedPeople} tolerance onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
+        <Dashboard people={sortedPeople} tolerance onSelect={openPerson} onSeeAll={openLedger} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
       } else {
       switch selected {
       | None =>

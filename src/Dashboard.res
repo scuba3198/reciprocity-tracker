@@ -30,7 +30,7 @@ let trendPath = (points: array<int>) => {
 }
 
 @react.component
-let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.person => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
+let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.person => unit, ~onSeeAll: unit => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
   let recent: array<recentItem> = people->Array.reduce([], (items, person) => {
     let history = person.entries->State.history->Belt.Array.reverse
     Array.concat(items, history->Array.map(item => {person, entry: item.entry}))
@@ -51,7 +51,7 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
     </section>
 
     <section className="dashboard-section" ariaLabelledby="people-title">
-      <div className="dashboard-section-heading"><h2 id="people-title">{React.string("People")}</h2><span>{React.string(countLabel(Array.length(people), "person", "people"))}</span></div>
+      <div className="dashboard-section-heading"><h2 id="people-title">{React.string("People")}</h2><div className="dashboard-people-heading-actions"><span>{React.string(countLabel(Array.length(people), "person", "people"))}</span>{Array.length(people) > 0 ? <button type_="button" onClick={_ => onSeeAll()}>{React.string("See all →")}</button> : React.null}</div></div>
       {Array.length(people) == 0
         ? <div className="dashboard-empty"><p>{React.string("Your people will find a home here.")}</p><button type_="button" onClick={_ => onAdd()}>{React.string("Add your first person →")}</button></div>
         : <div className="dashboard-people-rail">{people->Array.map(person => {
