@@ -747,10 +747,10 @@ let make = () => {
                   {myMove == "NoAction" ? <button type_="button" ariaPressed=#"true" className="selected" onClick={_ => {setMyMove(_ => ""); setMyActionDate(_ => "")}}>{React.string("No action (older draft)")}</button> : React.null}
                 </div>
                 {myMove == "" ? <p className="own-move-hint">{React.string("Choose an action for each person before confirming.")}</p> : React.null}
-                <p className="own-move-hint">{React.string("Cooperate (C): You helped, contributed, kept your promise, or otherwise acted cooperatively.")}</p>
-                <p className="own-move-hint">{React.string("Defect (D): You refused, withheld help, broke an agreement, exploited the other person, or otherwise acted uncooperatively.")}</p>
+                <p className="own-move-hint">{React.string("Cooperate (C): Helped, contributed, kept promise, or otherwise acted cooperatively.")}</p>
+                <p className="own-move-hint">{React.string("Defect (D): Refused, withheld help, broke an agreement, exploited the other person, or otherwise acted uncooperatively.")}</p>
                 <p className="own-move-hint">{React.string("Use Defected when there was a meaningful, safe choice under a clear expectation. Declining a request alone is not a defection.")}</p>
-                <p className="own-move-hint">{React.string("Request (R): You asked for help, a favor, or cooperation. A request is neutral and does not count as cooperation or defection.")}</p>
+                <p className="own-move-hint">{React.string("Request (R): Asked for help, a favor, or cooperation. A request is neutral and does not count as cooperation or defection.")}</p>
               </div>
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did they do?")}</p>
