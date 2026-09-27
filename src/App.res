@@ -12,6 +12,7 @@ type calendarView = {title: string, days: array<calendarDay>, previous: string, 
 @module("./Theme.js") external loadTheme: unit => string = "load"
 @module("./Theme.js") external applyTheme: string => unit = "apply"
 @scope("window") @val external scrollTo: (int, int) => unit = "scrollTo"
+@send external sortPeople: (array<State.person>, (State.person, State.person) => float) => array<State.person> = "sort"
 
 let moveClass = move => switch move { | State.Cooperate => "cooperate" | State.Defect => "defect" }
 let nextLabel = move => switch move { | State.Cooperate => "Cooperate" | State.Defect => "Withhold cooperation" }
@@ -489,6 +490,8 @@ let make = () => {
     }
   }
 
+  let sortedPeople = people->Array.map(person => person)->sortPeople((a, b) => String.compare(a.name->String.toLowerCase, b.name->String.toLowerCase))
+
   <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
     <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
       <div className="brand">
@@ -503,7 +506,7 @@ let make = () => {
           <div className="sidebar-search-field"><span ariaHidden=true>{React.string("⌕")}</span><input id="person-search" type_="search" placeholder="Search people..." value={searchQuery} onChange={event => setSearchQuery(_ => JsxEvent.Form.target(event)["value"])} /></div>
           {searchQuery->String.trim != ""
             ? <div className="sidebar-search-results" ariaLabel="Search results">
-                {people->Array.filter(person => person.name->String.toLowerCase->String.includes(searchQuery->String.trim->String.toLowerCase))->Array.map(person =>
+                {sortedPeople->Array.filter(person => person.name->String.toLowerCase->String.includes(searchQuery->String.trim->String.toLowerCase))->Array.map(person =>
                   <button key={person.id} type_="button" onClick={_ => {setSearchQuery(_ => ""); openPerson(person)}}>{React.string(person.name)}</button>
                 )->React.array}
               </div>
@@ -584,14 +587,14 @@ let make = () => {
         <section className="insights-page">
           <h1>{React.string("Insights")}</h1>
           <p>{React.string("A compact view of what you recorded. The difference is their cumulative defections minus yours, not a relationship score.")}</p>
-          <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{people->Array.map(person => {
+          <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{sortedPeople->Array.map(person => {
             let decision = State.next(person.entries)
             <tr key={person.id}><th scope="row"><button type_="button" onClick={_ => openPerson(person)}>{React.string(person.name)}</button></th><td>{React.string(Int.toString(Array.length(person.entries)))}</td><td>{React.string(Int.toString(decision.difference))}</td><td>{React.string(nextLabel(decision.move))}</td></tr>
           })->React.array}</tbody></table></div>
           {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
         </section>
       } else if showDashboard {
-        <Dashboard people onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
+        <Dashboard people={sortedPeople} onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
       } else {
       switch selected {
       | None =>
@@ -604,7 +607,7 @@ let make = () => {
           : <section className="ledger-index">
               <h1>{React.string("Ledgers")}</h1>
               <p>{React.string("Choose a person to see their interaction history or log what happened next.")}</p>
-              <div className="ledger-person-list">{people->Array.map(person => {
+              <div className="ledger-person-list">{sortedPeople->Array.map(person => {
                 let count = Array.length(person.entries)
                 <button key={person.id} type_="button" onClick={_ => openPerson(person)} ariaLabel={"Open " ++ person.name ++ "'s ledger"}>
                   <span><strong>{React.string(person.name)}</strong><small>{React.string(Int.toString(count) ++ (count == 1 ? " interaction" : " interactions"))}</small></span>
