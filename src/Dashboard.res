@@ -24,7 +24,7 @@ let trendPath = (points: array<int>) => {
   let span = upper - lower > 1 ? upper - lower : 1
   points->Array.mapWithIndex((point, index) => {
     let x = length == 1 ? 30 : index * 60 / (length - 1)
-    let y = 20 - (point - lower) * 16 / span
+    let y = 4 + (point - lower) * 16 / span
     Int.toString(x) ++ "," ++ Int.toString(y)
   })->Array.join(" ")
 }
@@ -52,6 +52,7 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
 
     <section className="dashboard-section" ariaLabelledby="people-title">
       <div className="dashboard-section-heading"><h2 id="people-title">{React.string("People")}</h2><div className="dashboard-people-heading-actions"><span>{React.string(countLabel(Array.length(people), "person", "people"))}</span>{Array.length(people) > 0 ? <button type_="button" onClick={_ => onSeeAll()}>{React.string("See all →")}</button> : React.null}</div></div>
+      {Array.length(people) > 0 ? <p className="dashboard-trend-help">{React.string("Lines rise when your defections increase relative to theirs; fall when theirs increase relative to yours.")}</p> : React.null}
       {Array.length(people) == 0
         ? <div className="dashboard-empty"><p>{React.string("Your people will find a home here.")}</p><button type_="button" onClick={_ => onAdd()}>{React.string("Add your first person →")}</button></div>
         : <div className="dashboard-people-rail">{people->Array.map(person => {
@@ -62,7 +63,7 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
             <button key={person.id} type_="button" className="dashboard-person-card" onClick={_ => onSelect(person)} ariaLabel={"Open " ++ person.name}>
               <span className="dashboard-avatar" ariaHidden=true>{React.string(initials(person.name))}</span>
               <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
-              {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Cumulative difference over " ++ Int.toString(count) ++ " recorded interactions"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+              {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Defection difference over " ++ Int.toString(count) ++ " recorded interactions; upward means more of your defections relative to theirs"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               <span className={decision.difference > tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
             </button>
           })->React.array}</div>}
