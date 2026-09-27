@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {next, orderedEntries, history, replaceEntry} from '../src/State.res.mjs'
-import {load, save} from '../src/Storage.res.mjs'
+import {load, save, loadTolerance, saveTolerance} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
 const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category, myActionDate: '', theirActionDate: ''})
@@ -10,13 +10,46 @@ test('CURE uses their total defections minus yours with inclusive tolerance 1', 
   const breach = entry('Cooperate', 'Defect', '2024-03-01')
   const repeated = entry('Cooperate', 'Defect', '2024-03-02')
   const repair = entry('Defect', 'Cooperate', '2024-03-03')
-  assert.deepEqual([next([]).move, next([breach]).move, next([breach, repeated]).move, next([breach, repeated, repair]).move],
+  assert.deepEqual([next([], 1).move, next([breach], 1).move, next([breach, repeated], 1).move, next([breach, repeated, repair], 1).move],
     ['Cooperate', 'Cooperate', 'Defect', 'Cooperate'])
   assert.equal(next([breach, repeated]).difference, 2)
   assert.deepEqual(next([breach, {...repeated, category: 'Money'}]), next([breach, repeated]))
   assert.deepEqual(next([breach, {...repeated, myActionDate: '2024-03-01', theirActionDate: '2024-03-01'}]), next([breach, repeated]))
   assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
   assert.equal(next([entry('Defect', 'Defect', '2024-03-01')]).difference, 0)
+})
+
+test('switching CURE tolerance recalculates current and historical recommendations', () => {
+  const breaches = [
+    entry('Cooperate', 'Defect', '2024-03-01'),
+    entry('Cooperate', 'Defect', '2024-03-02'),
+    entry('Cooperate', 'Defect', '2024-03-03'),
+  ]
+  assert.equal(next(breaches.slice(0, 2), 1).move, 'Defect')
+  assert.equal(next(breaches.slice(0, 2), 2).move, 'Cooperate')
+  assert.equal(next(breaches.slice(0, 2)).move, 'Cooperate')
+  assert.equal(next(breaches, 2).move, 'Defect')
+  assert.equal(history(breaches, 1)[2].recommended, 'Defect')
+  assert.equal(history(breaches, 2)[2].recommended, 'Cooperate')
+  assert.equal(history(breaches)[2].recommended, 'Cooperate')
+  assert.match(next(breaches, 2).explanation, /more than 2/)
+})
+
+test('CURE tolerance defaults to 2 and persists the selected level in this browser', () => {
+  let stored = null
+  globalThis.localStorage = {
+    getItem: key => key === 'good-faith.cure-tolerance' ? stored : null,
+    setItem: (key, value) => { assert.equal(key, 'good-faith.cure-tolerance'); stored = value },
+  }
+  try {
+    assert.equal(loadTolerance(), 2)
+    saveTolerance(1)
+    assert.equal(loadTolerance(), 1)
+    stored = 'invalid'
+    assert.equal(loadTolerance(), 2)
+  } finally {
+    delete globalThis.localStorage
+  }
 })
 
 test('CURE remembers the full history and recomputes the advice before each round', () => {
@@ -28,10 +61,10 @@ test('CURE remembers the full history and recomputes the advice before each roun
     entry('Cooperate', 'Defect', '2024-03-05'),
     entry('Cooperate', 'Cooperate', '2024-03-06'),
   ]
-  assert.deepEqual(history(rounds).map(item => [item.differenceBefore, item.recommended]),
+  assert.deepEqual(history(rounds, 1).map(item => [item.differenceBefore, item.recommended]),
     [[0, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect'], [1, 'Cooperate'], [1, 'Cooperate'], [2, 'Defect']])
-  assert.equal(next(rounds).move, 'Defect')
-  assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')]).move, 'Cooperate')
+  assert.equal(next(rounds, 1).move, 'Defect')
+  assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')], 1).move, 'Cooperate')
 })
 
 test('history edits map duplicate-date rows to the exact source entry and recompute CURE', () => {

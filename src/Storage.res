@@ -5,6 +5,17 @@
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
 
 let key = "good-faith.people.v2"
+let toleranceKey = "good-faith.cure-tolerance"
+let loadTolerance = () => try {
+  getItem(toleranceKey)->Nullable.toOption == Some("1") ? 1 : 2
+} catch {
+| _ => 2
+}
+let saveTolerance = tolerance => try {
+  setItem(toleranceKey, Int.toString(tolerance))
+} catch {
+| _ => ()
+}
 
 let field = (obj, name) => Dict.get(obj, name)
 let stringField = (obj, name) => field(obj, name)->Option.flatMap(JSON.Decode.string)

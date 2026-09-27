@@ -46,6 +46,9 @@ export function initialLedger(row, localPeople) {
   return row ? {people: row.people, insert: false} : {people: localPeople, insert: true}
 }
 
+export const accountTolerance = (user, fallback = 2) => [1, 2].includes(user?.user_metadata?.cure_tolerance)
+  ? user.user_metadata.cure_tolerance : fallback
+
 export function subscribe(callback) {
   let previousUserId
   const {data} = client.auth.onAuthStateChange((_event, session) => {
@@ -75,14 +78,16 @@ export async function auth(action, email, password) {
   return action === 'signout' ? 'Signed out.' : 'Signed in.'
 }
 
-export async function loadOrMigrate(userId, localPeople) {
+export async function loadOrMigrate(userId, localPeople, localTolerance) {
   return enqueueWrite(async () => {
-    await assertCurrentUser(userId)
+    const user = await assertCurrentUser(userId)
+    const tolerance = accountTolerance(user, localTolerance)
+    if (user.user_metadata?.cure_tolerance !== tolerance && tolerance === 2) await saveTolerance(userId, tolerance)
     const storage = browserStorage()
     const pending = await recoverPending(userId, storage, writeLedger, assertCurrentUser)
     if (pending !== null) {
       consumeGuestLedger(userId, false, storage)
-      return pending
+      return {people: pending, tolerance}
     }
 
     const table = client.from('good_faith_ledgers')
@@ -92,7 +97,7 @@ export async function loadOrMigrate(userId, localPeople) {
     if (!initial.insert) {
       await assertCurrentUser(userId)
       consumeGuestLedger(userId, false, storage)
-      return JSON.stringify(initial.people)
+      return {people: JSON.stringify(initial.people), tolerance}
     }
 
     await assertCurrentUser(userId)
@@ -100,7 +105,7 @@ export async function loadOrMigrate(userId, localPeople) {
     if (!insertError) {
       await assertCurrentUser(userId)
       consumeGuestLedger(userId, true, storage)
-      return JSON.stringify(initial.people)
+      return {people: JSON.stringify(initial.people), tolerance}
     }
     // A concurrent first sign-in may have inserted the row; that cloud row wins.
     const {data: existing, error: readError} = await table.select('people').eq('user_id', userId).maybeSingle()
@@ -108,7 +113,7 @@ export async function loadOrMigrate(userId, localPeople) {
     if (existing) {
       await assertCurrentUser(userId)
       consumeGuestLedger(userId, false, storage)
-      return JSON.stringify(existing.people)
+      return {people: JSON.stringify(existing.people), tolerance}
     }
     throw insertError
   })
@@ -118,6 +123,15 @@ async function assertCurrentUser(userId) {
   const {data: {user}, error} = await client.auth.getUser()
   if (error) throw error
   if (user?.id !== userId) throw new Error('Account changed while loading the ledger.')
+  return user
+}
+
+export async function saveTolerance(userId, tolerance) {
+  if (tolerance !== 1 && tolerance !== 2) throw new Error('Invalid CURE tolerance.')
+  await assertCurrentUser(userId)
+  const {data, error} = await client.auth.updateUser({data: {cure_tolerance: tolerance}})
+  if (error) throw error
+  if (data.user?.id !== userId) throw new Error('Account changed while saving CURE tolerance.')
 }
 
 export function save(userId, people) {

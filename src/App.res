@@ -2,8 +2,10 @@ type calendarDay = {date: string, label: string, accessible: string, disabled: b
 type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
 @module("./Supabase.js") external auth: (string, string, string) => promise<string> = "auth"
 @module("./Supabase.js") external subscribeAuth: ((string, string, string) => unit) => (unit => unit) = "subscribe"
-@module("./Supabase.js") external loadOrMigrate: (string, string) => promise<string> = "loadOrMigrate"
+type cloudLedger = {people: string, tolerance: int}
+@module("./Supabase.js") external loadOrMigrate: (string, string, int) => promise<cloudLedger> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
+@module("./Supabase.js") external saveCloudTolerance: (string, int) => promise<unit> = "saveTolerance"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
@@ -80,9 +82,14 @@ let make = () => {
   let (sidebarSettingsOpen, setSidebarSettingsOpen) = React.useState(_ => false)
   let (searchQuery, setSearchQuery) = React.useState(_ => "")
   let (theme, setTheme) = React.useState(loadTheme)
+  let (tolerance, setTolerance) = React.useState(Storage.loadTolerance)
+  let (toleranceBusy, setToleranceBusy) = React.useState(_ => false)
+  let (toleranceError, setToleranceError) = React.useState(_ => "")
+  let currentAccount = React.useRef("")
 
   React.useEffect0(() => {
     let unsubscribe = subscribeAuth((id, accountEmail, event) => {
+      currentAccount.current = id
       if event == "PASSWORD_RECOVERY" {setPasswordRecovery(_ => true); setPassword(_ => "")}
       if event == "SIGNED_OUT" {setPasswordRecovery(_ => false)}
       setAuthReady(_ => true)
@@ -93,20 +100,26 @@ let make = () => {
       setSelectedId(_ => "")
       setEditingEntryIndex(_ => -1)
       setEntryEditError(_ => "")
+      setToleranceBusy(_ => false)
+      setToleranceError(_ => "")
       if id == "" {
         setPeople(_ => Storage.load())
+        setTolerance(_ => Storage.loadTolerance())
         setCloudReady(_ => true)
         setSyncError(_ => "")
       } else {
         setCloudReady(_ => false)
-        loadOrMigrate(id, Storage.serialize(Storage.load()))
-        ->Promise.then(raw => {
-          setPeople(_ => Storage.decodePeople(raw))
-          setCloudReady(_ => true)
+        loadOrMigrate(id, Storage.serialize(Storage.load()), Storage.loadTolerance())
+        ->Promise.then(ledger => {
+          if currentAccount.current == id {
+            setPeople(_ => Storage.decodePeople(ledger.people))
+            setTolerance(_ => ledger.tolerance)
+            setCloudReady(_ => true)
+          }
           Promise.resolve(())
         })
         ->Promise.catch(_error => {
-          setSyncError(_ => "Could not load your cloud ledger. Retry to continue.")
+          if currentAccount.current == id {setSyncError(_ => "Could not load your account settings or cloud ledger. Retry to continue.")}
           Promise.resolve(())
         })
         ->ignore
@@ -136,9 +149,9 @@ let make = () => {
   let retrySync = () => {
     if userId == "" || !cloudReady {
       setCloudReady(_ => false)
-      loadOrMigrate(userId, Storage.serialize(Storage.load()))
-      ->Promise.then(raw => {setPeople(_ => Storage.decodePeople(raw)); setCloudReady(_ => true); setSyncError(_ => ""); Promise.resolve(())})
-      ->Promise.catch(_error => {setSyncError(_ => "Could not load your cloud ledger. Retry to continue."); Promise.resolve(())})
+      loadOrMigrate(userId, Storage.serialize(Storage.load()), Storage.loadTolerance())
+      ->Promise.then(ledger => {if currentAccount.current == userId {setPeople(_ => Storage.decodePeople(ledger.people)); setTolerance(_ => ledger.tolerance); setCloudReady(_ => true); setSyncError(_ => "")}; Promise.resolve(())})
+      ->Promise.catch(_error => {if currentAccount.current == userId {setSyncError(_ => "Could not load your account settings or cloud ledger. Retry to continue.")}; Promise.resolve(())})
       ->ignore
     } else {
       setSyncing(_ => true)
@@ -229,6 +242,19 @@ let make = () => {
   let chooseTheme = choice => {
     applyTheme(choice)
     setTheme(_ => choice)
+  }
+  let chooseTolerance = choice => {
+    setToleranceError(_ => "")
+    if userId == "" {
+      Storage.saveTolerance(choice)
+      setTolerance(_ => choice)
+    } else {
+      setToleranceBusy(_ => true)
+      saveCloudTolerance(userId, choice)
+      ->Promise.then(_ => {if currentAccount.current == userId {setTolerance(_ => choice); setToleranceBusy(_ => false)}; Promise.resolve(())})
+      ->Promise.catch(_ => {if currentAccount.current == userId {setToleranceError(_ => "Could not save tolerance to your account. Try again."); setToleranceBusy(_ => false)}; Promise.resolve(())})
+      ->ignore
+    }
   }
 
   let openHome = () => {
@@ -559,6 +585,14 @@ let make = () => {
 
         <div className={sidebarSettingsOpen ? "sidebar-settings-panel open" : "sidebar-settings-panel"}>
         <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => showInfo ? leaveInfo() : openInfo()}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
+        <section className="theme-tools" ariaLabel="CURE tolerance">
+          <p>{React.string("CURE tolerance")}</p>
+          <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
+            {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)}>{React.string(Int.toString(choice))}</button>)->React.array}
+          </div>
+          {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
+          {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
+        </section>
         <section className="theme-tools" ariaLabel="Appearance">
           <p>{React.string("Appearance")}</p>
           <div className="theme-options" role="group" ariaLabel="Color theme">
@@ -588,13 +622,13 @@ let make = () => {
           <h1>{React.string("Insights")}</h1>
           <p>{React.string("A compact view of what you recorded. The difference is their cumulative defections minus yours, not a relationship score.")}</p>
           <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{sortedPeople->Array.map(person => {
-            let decision = State.next(person.entries)
+            let decision = State.next(person.entries, ~tolerance)
             <tr key={person.id}><th scope="row"><button type_="button" onClick={_ => openPerson(person)}>{React.string(person.name)}</button></th><td>{React.string(Int.toString(Array.length(person.entries)))}</td><td>{React.string(Int.toString(decision.difference))}</td><td>{React.string(nextLabel(decision.move))}</td></tr>
           })->React.array}</tbody></table></div>
           {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
         </section>
       } else if showDashboard {
-        <Dashboard people={sortedPeople} onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
+        <Dashboard people={sortedPeople} tolerance onSelect={openPerson} onAdd={() => {setAddOpen(_ => true); scrollTo(0, 0)}} onLearn={openInfo} />
       } else {
       switch selected {
       | None =>
@@ -611,15 +645,15 @@ let make = () => {
                 let count = Array.length(person.entries)
                 <button key={person.id} type_="button" onClick={_ => openPerson(person)} ariaLabel={"Open " ++ person.name ++ "'s ledger"}>
                   <span><strong>{React.string(person.name)}</strong><small>{React.string(Int.toString(count) ++ (count == 1 ? " interaction" : " interactions"))}</small></span>
-                  <span>{React.string("CURE: " ++ nextLabel(State.next(person.entries).move))}</span>
+                  <span>{React.string("CURE: " ++ nextLabel(State.next(person.entries, ~tolerance).move))}</span>
                   <span ariaHidden=true>{React.string("›")}</span>
                 </button>
               })->React.array}</div>
             </section>
       | Some(person) => {
-          let decision = State.next(person.entries)
+          let decision = State.next(person.entries, ~tolerance)
           let count = Array.length(person.entries)
-          let history = person.entries->State.history->Belt.Array.reverse
+          let history = State.history(person.entries, ~tolerance)->Belt.Array.reverse
           let isSavedDraft = person.drafts->Array.some(draft => draft.id == currentDraftId)
           let editCategoryKnown = switch editCategory { | "" | "Work" | "Favor" | "Commitment" | "Money" | "Social" | "Support" | "Other" => true | _ => false }
           <div className="detail">

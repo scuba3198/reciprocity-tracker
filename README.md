@@ -2,7 +2,7 @@
 
 **[Open the website](https://scuba3198.github.io/reciprocity-tracker/)**
 
-A ReScript + React tracker for **CURE**, the cumulative reciprocity strategy in [Li et al. (2022)](https://www.nature.com/articles/s43588-022-00334-w). Each person has a separate interaction history. Log **both your move and their move** from each interaction. CURE tracks their cumulative defections minus yours and suggests cooperation while that difference is at most 1.
+A ReScript + React tracker for **CURE**, the cumulative reciprocity strategy in [Li et al. (2022)](https://www.nature.com/articles/s43588-022-00334-w). Each person has a separate interaction history. Log **both your move and their move** from each interaction. CURE tracks their cumulative defections minus yours and suggests cooperation while that difference is within your chosen tolerance of 1 or 2.
 
 Choose both moves, then **Confirm round** to add the interaction to CURE and the history. You can edit confirmed entries in **The pattern**; changes update CURE and analysis. You can keep multiple **Pending rounds** per person, reopen and edit each one, or start a new round. **Save draft** stores incomplete moves and fields; confirming or discarding one leaves the others intact. Check the completion date when confirming. The calendars accept past and future dates; action dates must be no later than the round completion date. Backdated entries are replayed in date order; **Undo last entry** removes the most recently confirmed entry.
 
@@ -38,5 +38,7 @@ Cloud sync uses `public.good_faith_ledgers`, protected by per-user row-level sec
 For an existing account, choose **Forgot password?** to request a reset email, then follow its link to set a password of at least 8 characters.
 
 Use **Appearance** for Auto (follows the device theme), Light, or Dark. The choice is saved in this browser.
+
+Use **CURE tolerance** in Settings to switch between 1 and 2 (default). The choice is saved in this browser while signed out and in your account while signed in. If your account has no saved tolerance yet, your browser choice is copied to it. Recommendations update across the tracker.
 
 Open **How the method works** in the sidebar for the CURE rule, the optional models, worked examples, the paper, and practical scenarios where a game model may help or should not be used.

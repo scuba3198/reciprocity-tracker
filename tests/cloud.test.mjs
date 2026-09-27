@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {consumeGuestLedger, enqueueWrite, guestSeed, initialLedger, persistPending, recoverPending} from '../src/Supabase.js'
+import {accountTolerance, consumeGuestLedger, enqueueWrite, guestSeed, initialLedger, persistPending, recoverPending} from '../src/Supabase.js'
+
+test('account tolerance takes precedence and an unset account can inherit the browser choice', () => {
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 1}}, 2), 1)
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 2}}, 1), 2)
+  assert.equal(accountTolerance({user_metadata: {}}, 2), 2)
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 3}}, 1), 1)
+  assert.equal(accountTolerance({user_metadata: {}}), 2)
+})
 
 test('first sign-in copies local data only when cloud is empty and queues writes in order', async () => {
   const local = [{id: 'local'}]

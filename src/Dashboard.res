@@ -30,7 +30,7 @@ let trendPath = (points: array<int>) => {
 }
 
 @react.component
-let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
+let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.person => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
   let recent: array<recentItem> = people->Array.reduce([], (items, person) => {
     let history = person.entries->State.history->Belt.Array.reverse
     Array.concat(items, history->Array.map(item => {person, entry: item.entry}))
@@ -55,15 +55,15 @@ let make = (~people: array<State.person>, ~onSelect: State.person => unit, ~onAd
       {Array.length(people) == 0
         ? <div className="dashboard-empty"><p>{React.string("Your people will find a home here.")}</p><button type_="button" onClick={_ => onAdd()}>{React.string("Add your first person →")}</button></div>
         : <div className="dashboard-people-rail">{people->Array.map(person => {
-            let decision = State.next(person.entries)
+            let decision = State.next(person.entries, ~tolerance)
             let count = Array.length(person.entries)
             let points = trendPoints(person.entries)
-            let trendColor = decision.difference <= State.tolerance ? "#3e9366" : "#c76e55"
+            let trendColor = decision.difference <= tolerance ? "#3e9366" : "#c76e55"
             <button key={person.id} type_="button" className="dashboard-person-card" onClick={_ => onSelect(person)} ariaLabel={"Open " ++ person.name}>
               <span className="dashboard-avatar" ariaHidden=true>{React.string(initials(person.name))}</span>
               <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
               {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Cumulative difference over " ++ Int.toString(count) ++ " recorded interactions"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              <span className={decision.difference > State.tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
+              <span className={decision.difference > tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
             </button>
           })->React.array}</div>}
     </section>
