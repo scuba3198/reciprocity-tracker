@@ -702,7 +702,7 @@ let make = () => {
                 <h3>{React.string("Pending rounds")}</h3>
                 {person.drafts->Array.mapWithIndex((draft, index) => {
                   let summary = draft.note != "" ? draft.note : draft.category != "" ? draft.category : "Incomplete round"
-                  <button key={draft.id} type_="button" className={draft.id == currentDraftId ? "draft-choice selected" : "draft-choice"} ariaPressed={draft.id == currentDraftId ? #"true" : #"false"} onClick={_ => loadDraft(draft)}>{React.string("Draft " ++ Int.toString(index + 1) ++ " · completion date to check: " ++ (draft.date == "" ? "unset" : draft.date) ++ " · " ++ summary)}</button>
+                  <button key={draft.id} type_="button" className={draft.id == currentDraftId ? "draft-choice selected" : "draft-choice"} ariaPressed={draft.id == currentDraftId ? #"true" : #"false"} onClick={_ => loadDraft(draft)}>{React.string("Draft " ++ Int.toString(index + 1) ++ " · " ++ summary)}</button>
                 })->React.array}
                 <button type_="button" className="text-button new-draft-button" onClick={_ => startNewDraft()}>{React.string("+ New round")}</button>
               </div>
@@ -718,8 +718,8 @@ let make = () => {
               </div>
               {calendarPanel("round", interactionDate, "Choose round completion date")}
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
-              <label className="note-label" htmlFor="entry-note">{React.string("A little context (optional)")}</label>
-              <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <label className="note-label" htmlFor="entry-note">{React.string("What is this about? (required to confirm)")}</label>
+              <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 required=true onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
               <div className="action-dates-field">
                 <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => {setActionDatesOpen(previous => !previous); setCalendarTarget(_ => "")}}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
                 {actionDatesOpen
@@ -764,7 +764,7 @@ let make = () => {
               {isSavedDraft ? <p className="own-move-hint">{React.string("Edit this saved draft, then save, confirm, or discard it.")}</p> : React.null}
               <div className="draft-actions">
                 <button type_="button" className="move-button" onClick={_ => saveDraft(person)}>{React.string(isSavedDraft ? "Save draft changes" : "Save draft")}</button>
-                <button type_="button" className="move-button cooperate" disabled={!State.validChoices(myMove, theirMove)} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
+                <button type_="button" className="move-button cooperate" disabled={!State.validChoices(myMove, theirMove) || note->String.trim == ""} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
                 {isSavedDraft ? <button type_="button" className="move-button defect" onClick={_ => discardDraft(person)}>{React.string("Discard draft")}</button> : React.null}
               </div>
             </section>
