@@ -60,7 +60,7 @@ let make = (~entries: array<State.entry>, ~cure: State.move) => {
         <div><span>{React.string("When you defect")}</span><strong>{React.string(percent(defect.probability) ++ " estimated cooperation")}</strong><small>{React.string(interactionCount(defect.observed) ++ " · " ++ defect.evidence ++ " history")}</small></div>
       </div>
       {selectedCategory != "" ? <p>{React.string("Category estimates use this person's overall history when category history is sparse.")}</p> : React.null}
-      <p>{React.string("Learned behavior uses only interactions where both people were classified as Cooperated or Defected. Requested and older No action records do not count as evidence. Evidence labels describe sample size, not statistical confidence.")}</p>
+      <p>{React.string("Learned behavior uses only interactions where both people were classified as Cooperated or Defected. Requested, Unable, and older No action records do not count as evidence. Evidence labels describe sample size, not statistical confidence.")}</p>
     </details>
     <button className="analysis-toggle" type_="button" ariaExpanded={analysisOpen} ariaControls="decision-analysis" onClick={_ => setOpen(previous => !previous)}>{React.string(analysisOpen ? "Close decision analysis" : "Help me decide")}</button>
     {analysisOpen

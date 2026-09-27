@@ -74,7 +74,7 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
       {recent->Array.length == 0
         ? <p className="dashboard-activity-empty">{React.string("Interactions you record will appear here.")}</p>
         : <ol className="dashboard-activity-list">{recent->Array.mapWithIndex((item, index) => <li key={item.person.id ++ item.entry.date ++ Int.toString(index)}>
-              <span className={item.entry.move == State.Cooperated ? "dashboard-activity-mark cooperate" : item.entry.move == State.Defected ? "dashboard-activity-mark defect" : "dashboard-activity-mark"}>{React.string(switch item.entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.NoAction => "–" })}</span>
+              <span className={item.entry.move == State.Cooperated ? "dashboard-activity-mark cooperate" : item.entry.move == State.Defected ? "dashboard-activity-mark defect" : "dashboard-activity-mark"}>{React.string(switch item.entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" | State.NoAction => "–" })}</span>
               <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("Them: " ++ State.actionLabel(item.entry.move) ++ " · You: " ++ State.actionLabel(item.entry.myMove) ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
               <time>{React.string(item.entry.date)}</time>
             </li>)->React.array}</ol>}

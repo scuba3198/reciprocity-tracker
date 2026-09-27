@@ -31,6 +31,7 @@ let actionField = (obj, name) => switch stringField(obj, name) {
 | Some("Cooperate") => Some(State.Cooperated)
 | Some("Defect") => Some(State.Defected)
 | Some("Request") => Some(State.Requested)
+| Some("Unable") => Some(State.Unable)
 | Some("NoAction") => Some(State.NoAction)
 | _ => None
 }
