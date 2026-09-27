@@ -749,7 +749,6 @@ let make = () => {
                 {myMove == "" ? <p className="own-move-hint">{React.string("Choose an action for each person before confirming.")}</p> : React.null}
                 <p className="own-move-hint">{React.string("Cooperate (C): Helped, contributed, kept promise, or otherwise acted cooperatively.")}</p>
                 <p className="own-move-hint">{React.string("Defect (D): Refused, withheld help, broke an agreement, exploited the other person, or otherwise acted uncooperatively.")}</p>
-                <p className="own-move-hint">{React.string("Use Defected when there was a meaningful, safe choice under a clear expectation. Declining a request alone is not a defection.")}</p>
                 <p className="own-move-hint">{React.string("Request (R): Asked for help, a favor, or cooperation. A request is neutral and does not count as cooperation or defection.")}</p>
               </div>
               <div className="own-move-field">
