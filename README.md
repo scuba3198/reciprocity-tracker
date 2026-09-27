@@ -4,24 +4,7 @@
 
 A ReScript + React tracker using an **app-level asynchronous adaptation of CURE**, the cumulative reciprocity strategy studied by [Li et al. (2022)](https://www.nature.com/articles/s43588-022-00334-w). The adaptation for dated, real-world actions is Good Faith's; it is not a method proposed or validated by Li et al. Each person has a separate history. A round records each person's status as Cooperated, Defected, Requested, or Unable. It requires at least one Cooperated or Defected status, or a Requested/Unable pair. Request and Unable are neutral. The rule tracks their cumulative defections minus yours and suggests cooperation while that difference is within your chosen tolerance of 1 or 2.
 
-Choose a role for each person, then **Confirm round**. A Request records that someone asked for help, a favor, or cooperation. Unable records that circumstances outside the person's reasonable control prevented help, such as illness, unavailability, insufficient resources, or a genuine conflicting obligation. Neither adds a defection. A Requested/Unable pair can be confirmed; Request/Request and Unable/Unable cannot. Older saved **No action** entries keep their original meaning: no relevant action by that person. They remain distinct and are never silently relabeled. CURE tracks defection imbalance, not a running score of good deeds. Use **Defected** only when someone made a meaningful, safe choice not to do an agreed optional contribution. You can edit confirmed entries in **The pattern**; changes update the CURE calculation and analysis. You can keep multiple **Pending rounds** per person, reopen and edit each one, or start a new round. **Save draft** stores incomplete moves and fields; confirming or discarding one leaves the others intact. Check the completion date when confirming. The calendars accept past and future dates; action dates must be no later than the round completion date. Backdated entries are replayed in date order; **Undo last entry** removes the most recently confirmed entry.
-
-## Learned behavior and decision analysis
-
-Each person's page has a small **Learned behavior** section and an optional **Help me decide** action. Logging an interaction asks for no extra ratings. These features calculate from the existing history and do not change CURE's recommendation.
-
-For each of your moves, the app estimates the chance that the other person cooperates, using only confirmed rounds that contain both people’s moves. Action dates, drafts, and events without a bilateral C/D entry are not observations. It starts with a Beta(1,1) prior, so the estimate is `(1 + their cooperations) / (2 + relevant interactions)`. An unseen response branch stays at 50%; one observation cannot produce 0% or 100%. Category estimates use two pseudo-observations at that person's overall conditional rate, then update with the category's observations. The displayed evidence label counts observations (Very limited: 0–2, Limited: 3–5, Moderate: 6–14, Strong: 15+); it is not a statistical confidence interval.
-
-**Help me decide** opens four optional 1–5 ratings, all initially 3: cooperation cost (`C`), successful reciprocity value (`V`), exploitation cost (`E`), and relationship importance (`R`). The app uses an illustrative, editable payoff mapping:
-
-| Outcome (you / them) | Utility |
-| --- | ---: |
-| Cooperate / Cooperate | `V + R − C` |
-| Cooperate / Defect | `−C − E` |
-| Defect / Cooperate | `V/2 − R` |
-| Defect / Defect | `−R` |
-
-For each possible move, expected utility is the estimated cooperation probability times its cooperative-outcome utility plus the remaining probability times its defecting-outcome utility. The higher result is suggested; a tie shows **No clear advantage**. This payoff mapping is a subjective decision aid, not a rule from Li et al. or a judgment of anyone's motives. CURE remains the app's reciprocity strategy, and the two recommendations may disagree.
+Choose a role for each person, then **Confirm round**. A Request records that someone asked for help, a favor, or cooperation. Unable records that circumstances outside the person's reasonable control prevented help, such as illness, unavailability, insufficient resources, or a genuine conflicting obligation. Neither adds a defection. A Requested/Unable pair can be confirmed; Request/Request and Unable/Unable cannot. Older saved **No action** entries keep their original meaning: no relevant action by that person. They remain distinct and are never silently relabeled. CURE tracks defection imbalance, not a running score of good deeds. Use **Defected** only when someone made a meaningful, safe choice not to do an agreed optional contribution. You can edit confirmed entries in **The pattern**; changes update CURE's recommendation and history. You can keep multiple **Pending rounds** per person, reopen and edit each one, or start a new round. **Save draft** stores incomplete moves and fields; confirming or discarding one leaves the others intact. Check the completion date when confirming. The calendars accept past and future dates; action dates must be no later than the round completion date. Backdated entries are replayed in date order; **Undo last entry** removes the most recently confirmed entry.
 
 ## Run
 
@@ -41,4 +24,4 @@ Use **Appearance** for Auto (follows the device theme), Light, or Dark. The choi
 
 Use **CURE tolerance** in Settings to switch between 1 and 2 (default). The choice is saved in this browser while signed out and in your account while signed in. If your account has no saved tolerance yet, your browser choice is copied to it. Recommendations update across the tracker.
 
-Open **How the method works** in the sidebar for the CURE rule, the optional models, worked examples, and the paper.
+Open **How the method works** in the sidebar for the CURE rule, worked examples, and the paper.

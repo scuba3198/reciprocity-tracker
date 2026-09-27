@@ -694,8 +694,6 @@ let make = () => {
               <p className="decision-rule">{React.string(decision.rule)}</p>
             </section>
 
-            <PersonAnalysis key={person.id} entries={person.entries} cure={decision.move} />
-
             <section className="record-section">
               <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Classify each person's role as Cooperated, Defected, Requested, or Unable. Older No action records keep their original label.")}</p></div>
               <div className="pending-drafts" ariaLabel="Pending drafts">

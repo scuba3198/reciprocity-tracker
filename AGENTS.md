@@ -19,3 +19,4 @@ Use the five default triage labels. See `docs/agents/triage-labels.md`.
 ### Domain docs
 
 Use the single-context layout. See `docs/agents/domain.md`.
+For recommendation changes, consult `CONTEXT.md`: CURE is the sole strategy.

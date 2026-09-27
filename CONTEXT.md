@@ -42,9 +42,3 @@ An optional label for the context of a round. It does not divide a person's CURE
 
 **CURE**:
 A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one or two, default two); otherwise it recommends withholding cooperation. Request, Unable, and legacy No action add no defection; each defection has equal weight regardless of stakes.
-
-**Decision analysis**:
-An optional comparison of the two choices using estimated responses and user-rated stakes. Its payoff mapping is illustrative and subjective; it does not replace CURE's recommendation.
-
-**Behavior estimate**:
-A descriptive association between the person's cooperation and each of the user's two choices across confirmed bilateral C/D interactions only, regardless of who acted first. Request, Unable, legacy No action, and drafts are not observations. It does not claim that the user's choice caused the person's choice.

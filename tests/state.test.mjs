@@ -153,6 +153,23 @@ test('CURE starts a fresh ledger and loads only its new storage key', () => {
   }
 })
 
+test('saved ledgers ignore unknown fields and retain CURE history', () => {
+  const person = {id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01', 'Work')], drafts: []}
+  let stored
+  globalThis.localStorage = {getItem: () => stored, setItem: (_, value) => { stored = value }}
+  try {
+    save([person])
+    const [serialized] = JSON.parse(stored)
+    stored = JSON.stringify([{...serialized, oldAnalysis: {recommendation: 'Defect'}, entries: [{...serialized.entries[0], oldPrediction: 0.75}]}])
+    assert.deepEqual(load(), [person])
+    assert.equal(next(load()[0].entries).difference, 1)
+    save(load())
+    assert.deepEqual(JSON.parse(stored), [serialized])
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
 test('multiple drafts roundtrip, migrate a legacy draft, and confirm independently', () => {
   let stored
   globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
