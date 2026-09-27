@@ -13,7 +13,7 @@ type recentItem = {person: State.person, entry: State.entry}
 
 let trendPoints = (entries: array<State.entry>) =>
   Array.concat([0], entries->State.history->Array.map(item =>
-    item.differenceBefore + (item.entry.move == State.Defect ? 1 : 0) - (item.entry.myMove == State.Defect ? 1 : 0)
+    State.update(item.differenceBefore, item.entry)
   ))
 
 let trendPath = (points: array<int>) => {
@@ -73,8 +73,8 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
       {recent->Array.length == 0
         ? <p className="dashboard-activity-empty">{React.string("Interactions you record will appear here.")}</p>
         : <ol className="dashboard-activity-list">{recent->Array.mapWithIndex((item, index) => <li key={item.person.id ++ item.entry.date ++ Int.toString(index)}>
-              <span className={item.entry.move == State.Cooperate ? "dashboard-activity-mark cooperate" : "dashboard-activity-mark defect"}>{React.string(item.entry.move == State.Cooperate ? "C" : "D")}</span>
-              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("They " ++ State.label(item.entry.move)->String.toLowerCase ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
+              <span className={item.entry.move == Some(State.Cooperate) ? "dashboard-activity-mark cooperate" : item.entry.move == Some(State.Defect) ? "dashboard-activity-mark defect" : "dashboard-activity-mark"}>{React.string(switch item.entry.move { | Some(State.Cooperate) => "C" | Some(State.Defect) => "D" | None => "–" })}</span>
+              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("Them: " ++ State.actionLabel(item.entry.move) ++ " · You: " ++ State.actionLabel(item.entry.myMove) ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
               <time>{React.string(item.entry.date)}</time>
             </li>)->React.array}</ol>}
     </section>

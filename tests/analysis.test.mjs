@@ -3,7 +3,7 @@ import test from 'node:test'
 import {estimate, evidenceLabel} from '../src/Bayesian.res.mjs'
 import {defaults, decide, expectedUtility, utility} from '../src/DecisionAnalysis.res.mjs'
 
-const entry = (mine, theirs, category = '', date = '2024-01-01') => ({myMove: mine, move: theirs, category, note: '', date, myActionDate: '', theirActionDate: ''})
+const entry = (mine, theirs, category = '', date = '2024-01-01') => ({myMove: mine === 'NoAction' ? undefined : mine, move: theirs === 'NoAction' ? undefined : theirs, category, note: '', date, myActionDate: '', theirActionDate: ''})
 
 test('conditional estimates use Beta(1,1) and condition on my move', () => {
   const entries = [entry('Cooperate', 'Cooperate'), entry('Cooperate', 'Defect'), entry('Defect', 'Cooperate')]
@@ -26,6 +26,27 @@ test('category estimate pools toward the matching overall conditional estimate',
   assert.notEqual(estimate(entries, 'Cooperate', 'A').probability, estimate(entries, 'Cooperate', 'B').probability)
   const backdated = [entry('Cooperate', 'Defect', 'A', '2024-02-01'), entry('Cooperate', 'Cooperate', 'A', '2024-01-01')]
   assert.deepEqual(estimate(backdated, 'Cooperate', 'A'), estimate([...backdated].reverse(), 'Cooperate', 'A'))
+})
+
+test('Bayesian estimates exclude one-sided NoAction observations', () => {
+  const bilateral = [
+    entry('Cooperate', 'Cooperate', 'Favor'),
+    entry('Cooperate', 'Defect', 'Favor'),
+    entry('Defect', 'Cooperate', 'Favor'),
+    entry('Defect', 'Defect', 'Favor'),
+  ]
+  const oneSided = [
+    entry('Cooperate', 'NoAction', 'Favor'),
+    entry('Defect', 'NoAction', 'Favor'),
+    entry('NoAction', 'Cooperate', 'Favor'),
+    entry('NoAction', 'Defect', 'Favor'),
+  ]
+  for (const myMove of ['Cooperate', 'Defect']) {
+    for (const category of [undefined, 'Favor']) {
+      assert.deepEqual(estimate([...bilateral, ...oneSided], myMove, category), estimate(bilateral, myMove, category))
+      assert.equal(estimate(oneSided, myMove, category).observed, 0)
+    }
+  }
 })
 
 test('evidence labels use the specified count bands', () => {

@@ -1,10 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 
-const entry = (mine, theirs, date, category = '') => ({myMove: mine, move: theirs, note: '', date, category, myActionDate: '', theirActionDate: ''})
+const action = value => value === 'NoAction' ? undefined : value
+const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
+
+test('one-sided choices are valid, both NoAction is rejected, and choices map to optional moves', () => {
+  assert.equal(validChoices('Cooperate', 'NoAction'), true)
+  assert.equal(validChoices('NoAction', 'Defect'), true)
+  assert.equal(validChoices('NoAction', 'NoAction'), false)
+  assert.equal(validChoices('invalid', 'Cooperate'), false)
+  assert.equal(actionFromChoice('Cooperate'), 'Cooperate')
+  assert.equal(actionFromChoice('Defect'), 'Defect')
+  assert.equal(actionFromChoice('NoAction'), undefined)
+})
 
 test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
   const breach = entry('Cooperate', 'Defect', '2024-03-01')
@@ -67,6 +78,25 @@ test('CURE remembers the full history and recomputes the advice before each roun
   assert.equal(next([...rounds, entry('Defect', 'Cooperate', '2024-03-07')], 1).move, 'Cooperate')
 })
 
+test('one-sided defection changes CURE only for the acting side; edits and backdating replay', () => {
+  for (const [mine, theirs, difference] of [
+    ['NoAction', 'Cooperate', 0], ['NoAction', 'Defect', 1],
+    ['Cooperate', 'NoAction', 0], ['Defect', 'NoAction', -1],
+    ['Cooperate', 'Cooperate', 0], ['Cooperate', 'Defect', 1],
+    ['Defect', 'Cooperate', -1], ['Defect', 'Defect', 0],
+  ]) assert.equal(next([entry(mine, theirs, '2024-03-01')]).difference, difference)
+  const interaction = entry('Cooperate', 'Defect', '2024-03-03')
+  const oneSided = entry('NoAction', 'Defect', '2024-03-02')
+  assert.equal(next([interaction, oneSided]).difference, 2)
+  assert.deepEqual(history([interaction, oneSided], 1).map(item => [item.entry.date, item.differenceBefore, item.recommended]),
+    [['2024-03-02', 0, 'Cooperate'], ['2024-03-03', 1, 'Cooperate']])
+  const entries = [interaction, oneSided]
+  const revised = replaceEntry(entries, 0, entry('NoAction', 'Cooperate', '2024-03-01'))
+  assert.deepEqual(orderedEntries(revised).map(item => item.date), ['2024-03-01', '2024-03-02'])
+  assert.equal(next(revised).difference, 1)
+  assert.equal(next([entry('Defect', 'NoAction', '2024-03-01'), oneSided]).difference, 0)
+})
+
 test('history edits map duplicate-date rows to the exact source entry and recompute CURE', () => {
   const entries = [
     {...entry('Cooperate', 'Defect', '2024-03-01'), note: 'first'},
@@ -111,10 +141,11 @@ test('multiple drafts roundtrip, migrate a legacy draft, and confirm independent
     assert.deepEqual(load()[0].drafts, [{...legacyFields, id: 'legacy-legacy'}])
 
     const first = {id: 'first', myMove: 'Cooperate', move: 'Defect', note: 'first request', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}
-    const second = {id: 'second', myMove: '', move: '', note: 'second request', date: '', category: 'Social', myActionDate: '', theirActionDate: ''}
-    save([{id: 'one', name: 'A person', entries: [], drafts: [first, second]}])
+    const second = {id: 'second', myMove: '', move: 'NoAction', note: 'second request', date: '', category: 'Social', myActionDate: '', theirActionDate: ''}
+    const third = {id: 'third', myMove: 'Defect', move: 'Cooperate', note: '', date: '', category: '', myActionDate: '', theirActionDate: ''}
+    save([{id: 'one', name: 'A person', entries: [], drafts: [first, second, third]}])
     const reopened = load()[0]
-    assert.deepEqual(reopened.drafts, [first, second])
+    assert.deepEqual(reopened.drafts, [first, second, third])
     assert.equal(next(reopened.entries).difference, 0)
 
     const confirmed = entry(first.myMove, first.move, first.date, first.category)
@@ -122,7 +153,7 @@ test('multiple drafts roundtrip, migrate a legacy draft, and confirm independent
     save([{...reopened, entries: [...reopened.entries, confirmed], drafts: remaining}])
     const after = load()[0]
     assert.equal(next(after.entries).difference, 1)
-    assert.deepEqual(after.drafts, [second])
+    assert.deepEqual(after.drafts, [second, third])
   } finally {
     delete globalThis.localStorage
   }
@@ -135,6 +166,27 @@ test('save persists both action dates', () => {
     const people = [{id: 'one', name: 'A person', entries: [{...entry('Cooperate', 'Defect', '2024-03-01'), myActionDate: '2024-02-29', theirActionDate: ''}], drafts: []}]
     save(people)
     assert.deepEqual(JSON.parse(stored)[0].entries[0], people[0].entries[0])
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('one-sided NoAction entries roundtrip through storage as NoAction strings', () => {
+  let stored
+  globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
+  try {
+    const people = [{id: 'one', name: 'A person', entries: [entry('NoAction', 'Defect', '2024-03-01'), entry('Cooperate', 'NoAction', '2024-03-02')], drafts: []}]
+    save(people)
+    assert.equal(JSON.parse(stored)[0].entries[0].myMove, 'NoAction')
+    assert.equal(JSON.parse(stored)[0].entries[1].move, 'NoAction')
+    assert.deepEqual(load(), people)
+    for (const invalid of [undefined, 'garbage', null]) {
+      const bad = JSON.parse(stored)
+      if (invalid === undefined) delete bad[0].entries[0].myMove
+      else bad[0].entries[0].myMove = invalid
+      globalThis.localStorage.getItem = () => JSON.stringify(bad)
+      assert.deepEqual(load(), [])
+    }
   } finally {
     delete globalThis.localStorage
   }

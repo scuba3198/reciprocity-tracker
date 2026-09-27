@@ -27,9 +27,10 @@ let optionalDateField = (obj, name) => switch field(obj, name) {
   | Some(value) => value->normalizeDate->Nullable.toOption
   }
 }
-let moveField = (obj, name) => switch stringField(obj, name) {
-| Some("Cooperate") => Some(State.Cooperate)
-| Some("Defect") => Some(State.Defect)
+let actionField = (obj, name) => switch stringField(obj, name) {
+| Some("Cooperate") => Some(Some(State.Cooperate))
+| Some("Defect") => Some(Some(State.Defect))
+| Some("NoAction") => Some(None)
 | _ => None
 }
 let decodeDraft = (json, id) => switch JSON.Decode.object(json) {
@@ -58,9 +59,9 @@ let decodeEntry = json => switch JSON.Decode.object(json) {
     | None => Some("")
     | Some(value) => JSON.Decode.string(value)
     }
-    switch (moveField(obj, "move"), moveField(obj, "myMove"), stringField(obj, "note"), date, category, myActionDate, theirActionDate) {
+    switch (actionField(obj, "move"), actionField(obj, "myMove"), stringField(obj, "note"), date, category, myActionDate, theirActionDate) {
   | (Some(move), Some(myMove), Some(note), Some(date), Some(category), Some(myActionDate), Some(theirActionDate)) => {
-      if (myActionDate != "" && myActionDate > date) || (theirActionDate != "" && theirActionDate > date) {
+      if (myMove == None && move == None) || (myMove == None && myActionDate != "") || (move == None && theirActionDate != "") || (myActionDate != "" && myActionDate > date) || (theirActionDate != "" && theirActionDate > date) {
         None
       } else {
         let entry: State.entry = {move, myMove, note, date, category, myActionDate, theirActionDate}
@@ -119,8 +120,8 @@ let encodePeople = (people: array<State.person>) =>
     "id": person.id,
     "name": person.name,
     "entries": person.entries->Array.map(entry => {
-      "move": switch entry.move { | State.Cooperate => "Cooperate" | State.Defect => "Defect" },
-      "myMove": switch entry.myMove { | State.Cooperate => "Cooperate" | State.Defect => "Defect" },
+      "move": State.choiceFromAction(entry.move),
+      "myMove": State.choiceFromAction(entry.myMove),
       "note": entry.note,
       "date": entry.date,
       "category": entry.category,
