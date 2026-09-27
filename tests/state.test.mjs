@@ -3,9 +3,15 @@ import test from 'node:test'
 import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
+import {trendPath} from '../src/Dashboard.res.mjs'
 
 const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', NoAction: 'NoAction'})[value]
 const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
+
+test('dashboard line rises when the defection difference decreases', () => {
+  assert.equal(trendPath([0, 1, 0]), '0,4 30,20 60,4')
+  assert.equal(trendPath([0, -1, 0]), '0,20 30,4 60,20')
+})
 
 test('choices map to actions and require at least one C/D action', () => {
   assert.equal(validChoices('Cooperate', 'NoAction'), true)
