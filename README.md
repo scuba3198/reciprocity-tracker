@@ -4,7 +4,7 @@
 
 A ReScript + React tracker for **CURE**, the cumulative reciprocity strategy in [Li et al. (2022)](https://www.nature.com/articles/s43588-022-00334-w). Each person has a separate interaction history. Log **both your move and their move** from each interaction. CURE tracks their cumulative defections minus yours and suggests cooperation while that difference is at most 1.
 
-Set when the interaction happened with the custom calendar, **Today**, **Yesterday**, or a date in `YYYY-MM-DD` / `YYYYMMDD` form. Backdated entries are replayed in date order; **Undo last entry** removes the most recently logged entry.
+Choose both moves, then **Confirm round** to add the interaction to CURE and the history. **Save draft** stores incomplete moves and fields with that person so you can edit or reopen them later; discard a draft when it is no longer needed. The calendars accept past and future dates; action dates must be no later than the round completion date. Backdated entries are replayed in date order; **Undo last entry** removes the most recently confirmed entry.
 
 ## Learned behavior and decision analysis
 

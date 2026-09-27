@@ -36,6 +36,7 @@ let make = () => {
   let (category, setCategory) = React.useState(_ => "")
   let (categoryOpen, setCategoryOpen) = React.useState(_ => false)
   let (myMove, setMyMove) = React.useState(_ => None)
+  let (theirMove, setTheirMove) = React.useState(_ => None)
   let (interactionDate, setInteractionDate) = React.useState(today)
   let (myActionDate, setMyActionDate) = React.useState(_ => "")
   let (theirActionDate, setTheirActionDate) = React.useState(_ => "")
@@ -186,21 +187,17 @@ let make = () => {
   }
   let calendarPanel = (target, selectedDate, label) => {
     if calendarTarget == target {
-      let latest = target == "round" ? today() : switch interactionDate->normalizeDate->Nullable.toOption {
-      | Some(date) => date
-      | None => today()
-      }
       <section className="calendar-panel" ariaLabel={label}>
         <div className="calendar-head">
           <button type_="button" ariaLabel="Previous month" disabled={calendar.previousDisabled} onClick={_ => setMonthKey(_ => calendar.previous)}>{React.string("‹")}</button>
           <strong>{React.string(calendar.title)}</strong>
-          <button type_="button" ariaLabel="Next month" disabled={calendar.nextDisabled || calendar.next > latest->String.slice(~start=0, ~end=7)} onClick={_ => setMonthKey(_ => calendar.next)}>{React.string("›")}</button>
+          <button type_="button" ariaLabel="Next month" disabled={calendar.nextDisabled} onClick={_ => setMonthKey(_ => calendar.next)}>{React.string("›")}</button>
         </div>
         <div className="calendar-grid">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]->Array.map(day => <span key={day} className="calendar-weekday">{React.string(day)}</span>)->React.array}
           {calendar.days->Array.mapWithIndex((day, index) => day.date == ""
             ? <span key={Int.toString(index)} ariaHidden=true></span>
-            : <button key={day.date} type_="button" className={selectedDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={selectedDate == day.date ? #"true" : #"false"} disabled={day.disabled || day.date > latest} onClick={_ => {
+            : <button key={day.date} type_="button" className={selectedDate == day.date ? "calendar-day selected" : "calendar-day"} ariaLabel={day.accessible} ariaPressed={selectedDate == day.date ? #"true" : #"false"} disabled={day.disabled} onClick={_ => {
                 switch target {
                 | "my" => setMyActionDate(_ => day.date)
                 | "their" => setTheirActionDate(_ => day.date)
@@ -264,13 +261,29 @@ let make = () => {
     setSelectedId(_ => person.id)
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
-    setInteractionDate(_ => today())
-    setMyActionDate(_ => "")
-    setTheirActionDate(_ => "")
-    setActionDatesOpen(_ => false)
+    switch person.draft {
+    | Some(draft) => {
+        setInteractionDate(_ => draft.date)
+        setMyMove(_ => switch draft.myMove { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
+        setTheirMove(_ => switch draft.move { | "Cooperate" => Some(State.Cooperate) | "Defect" => Some(State.Defect) | _ => None })
+        setNote(_ => draft.note)
+        setCategory(_ => draft.category)
+        setMyActionDate(_ => draft.myActionDate)
+        setTheirActionDate(_ => draft.theirActionDate)
+        setActionDatesOpen(_ => draft.myActionDate != "" || draft.theirActionDate != "")
+      }
+    | None => {
+        setInteractionDate(_ => today())
+        setMyMove(_ => None)
+        setTheirMove(_ => None)
+        setNote(_ => "")
+        setCategory(_ => "")
+        setMyActionDate(_ => "")
+        setTheirActionDate(_ => "")
+        setActionDatesOpen(_ => false)
+      }
+    }
     setActionDateError(_ => "")
-    setMyMove(_ => None)
-    setCategory(_ => "")
     setCategoryOpen(_ => false)
     setCalendarTarget(_ => "")
     setDateError(_ => "")
@@ -281,7 +294,7 @@ let make = () => {
     ReactEvent.Form.preventDefault(event)
     let name = newName->String.trim
     if name != "" {
-      let person: State.person = {id: Storage.randomUUID(), name, entries: []}
+      let person: State.person = {id: Storage.randomUUID(), name, entries: [], draft: None}
       commit(Array.concat(people, [person]))
       setSelectedId(_ => person.id)
       setShowInfo(_ => false)
@@ -289,6 +302,10 @@ let make = () => {
       setShowInsights(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
+      setInteractionDate(_ => today())
+      setMyMove(_ => None)
+      setTheirMove(_ => None)
+      setNote(_ => "")
       setMyActionDate(_ => "")
       setTheirActionDate(_ => "")
       setActionDatesOpen(_ => false)
@@ -298,25 +315,52 @@ let make = () => {
     }
   }
 
-  let log = (person: State.person, move) => {
-    switch (myMove, interactionDate->normalizeDate->Nullable.toOption) {
-    | (None, _) => ()
-    | (_, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits, no later than today.")
-    | (Some(mine), Some(date)) => {
+  let saveDraft = (person: State.person) => {
+    let draft: State.draft = {
+      move: switch theirMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" },
+      myMove: switch myMove { | Some(State.Cooperate) => "Cooperate" | Some(State.Defect) => "Defect" | None => "" },
+      note, date: interactionDate, category, myActionDate, theirActionDate,
+    }
+    commit(people->Array.map(item => item.id == person.id ? {...item, draft: Some(draft)} : item))
+    setDateError(_ => "")
+    setActionDateError(_ => "")
+  }
+
+  let discardDraft = (person: State.person) => {
+    commit(people->Array.map(item => item.id == person.id ? {...item, draft: None} : item))
+    setTheirMove(_ => None)
+    setMyMove(_ => None)
+    setNote(_ => "")
+    setCategory(_ => "")
+    setInteractionDate(_ => today())
+    setMyActionDate(_ => "")
+    setTheirActionDate(_ => "")
+    setActionDatesOpen(_ => false)
+    setDateError(_ => "")
+    setActionDateError(_ => "")
+  }
+
+  let confirmRound = (person: State.person) => {
+    if myMove == None || theirMove == None {
+      setDateError(_ => "Choose both moves before confirming the round.")
+    } else {switch (myMove, theirMove, interactionDate->normalizeDate->Nullable.toOption) {
+    | (_, _, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits.")
+    | (Some(mine), Some(theirs), Some(date)) => {
         let myInput = myActionDate->String.trim
         let theirInput = theirActionDate->String.trim
         let mineDate = myInput == "" ? Some("") : myInput->normalizeDate->Nullable.toOption
         let theirsDate = theirInput == "" ? Some("") : theirInput->normalizeDate->Nullable.toOption
         switch (mineDate, theirsDate) {
         | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
-            let entry: State.entry = {move, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
+            let entry: State.entry = {move: theirs, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
             commit(people->Array.map(item => item.id == person.id
-              ? {...item, entries: Array.concat(item.entries, [entry])}
+              ? {...item, entries: Array.concat(item.entries, [entry]), draft: None}
               : item))
             setNote(_ => "")
             setCategory(_ => "")
             setCategoryOpen(_ => false)
             setMyMove(_ => None)
+            setTheirMove(_ => None)
             setInteractionDate(_ => today())
             setMyActionDate(_ => "")
             setTheirActionDate(_ => "")
@@ -331,7 +375,8 @@ let make = () => {
           }
         }
       }
-    }
+    | _ => setDateError(_ => "Choose both moves before confirming the round.")
+    }}
   }
 
   let undo = (person: State.person) => {
@@ -587,11 +632,20 @@ let make = () => {
                   <button type_="button" ariaPressed={myMove == Some(State.Cooperate) ? #"true" : #"false"} className={myMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
                   <button type_="button" ariaPressed={myMove == Some(State.Defect) ? #"true" : #"false"} className={myMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setMyMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
                 </div>
-                {myMove == None ? <p className="own-move-hint">{React.string("Choose your move to enable the log buttons.")}</p> : React.null}
+                {myMove == None ? <p className="own-move-hint">{React.string("Choose both moves before confirming the round.")}</p> : React.null}
               </div>
-              <div className="move-buttons">
-                <button type_="button" className="move-button cooperate" disabled={myMove == None} onClick={_ => log(person, State.Cooperate)}>{React.string("They cooperated")}</button>
-                <button type_="button" className="move-button defect" disabled={myMove == None} onClick={_ => log(person, State.Defect)}>{React.string("They defected")}</button>
+              <div className="own-move-field">
+                <p className="note-label">{React.string("What did they do? (required for CURE)")}</p>
+                <div className="own-move-options" role="group" ariaLabel="Their move in this interaction">
+                  <button type_="button" ariaPressed={theirMove == Some(State.Cooperate) ? #"true" : #"false"} className={theirMove == Some(State.Cooperate) ? "selected" : ""} onClick={_ => setTheirMove(_ => Some(State.Cooperate))}>{React.string("Cooperated")}</button>
+                  <button type_="button" ariaPressed={theirMove == Some(State.Defect) ? #"true" : #"false"} className={theirMove == Some(State.Defect) ? "selected" : ""} onClick={_ => setTheirMove(_ => Some(State.Defect))}>{React.string("Withheld")}</button>
+                </div>
+              </div>
+              {person.draft != None ? <p className="own-move-hint">{React.string("Saved draft · edit these fields and save again, or discard it.")}</p> : React.null}
+              <div className="draft-actions">
+                <button type_="button" className="move-button" onClick={_ => saveDraft(person)}>{React.string("Save draft")}</button>
+                <button type_="button" className="move-button cooperate" disabled={myMove == None || theirMove == None} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
+                {person.draft != None ? <button type_="button" className="move-button defect" onClick={_ => discardDraft(person)}>{React.string("Discard draft")}</button> : React.null}
               </div>
             </section>
 

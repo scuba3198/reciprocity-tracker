@@ -41,13 +41,36 @@ test('CURE starts a fresh ledger and loads only its new storage key', () => {
   try {
     assert.deepEqual(load(), [])
     saved['good-faith.people.v2'] = JSON.stringify(people)
-    assert.deepEqual(load(), people)
+    assert.deepEqual(load(), people.map(person => ({...person, draft: undefined})))
     const legacy = JSON.parse(saved['good-faith.people.v2'])
     delete legacy[0].entries[0].category
     saved['good-faith.people.v2'] = JSON.stringify(legacy)
     assert.equal(load()[0].entries[0].category, '')
     assert.equal(load()[0].entries[0].myActionDate, '')
     assert.equal(load()[0].entries[0].theirActionDate, '')
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('per-person drafts roundtrip without affecting CURE until confirmed', () => {
+  let stored
+  globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
+  try {
+    const savedRound = entry('Cooperate', 'Defect', '2024-03-01')
+    const draft = {myMove: 'Cooperate', move: '', note: 'still discussing', date: '2024-03-02', category: 'Work', myActionDate: '', theirActionDate: ''}
+    save([{id: 'one', name: 'A person', entries: [savedRound], draft}])
+    const reopened = load()[0]
+    assert.deepEqual(reopened.draft, draft)
+    assert.deepEqual(next(reopened.entries), next([savedRound]))
+
+    const confirmed = {...draft, move: 'Defect'}
+    const completed = {...confirmed, date: '2024-03-02'}
+    const history = [...reopened.entries, completed]
+    assert.notDeepEqual(next(history), next(reopened.entries))
+    save([{...reopened, entries: history, draft: undefined}])
+    assert.equal(load()[0].entries.length, 2)
+    assert.equal(load()[0].draft, undefined)
   } finally {
     delete globalThis.localStorage
   }
@@ -68,7 +91,7 @@ test('save persists both action dates', () => {
 test('interaction dates are valid local dates and backdated moves are replayed in date order', () => {
   assert.equal(normalize('20240229'), '2024-02-29')
   assert.equal(normalize('2024-02-30'), null)
-  assert.equal(normalize('9999-12-31'), null)
+  assert.equal(normalize('9999-12-31'), '9999-12-31')
   assert.equal(normalize(today()), today())
 
   const later = entry('Defect', 'Cooperate', '2024-03-02')
@@ -78,13 +101,23 @@ test('interaction dates are valid local dates and backdated moves are replayed i
   assert.equal(next([later, earlier]).move, 'Cooperate')
 })
 
-test('calendar includes leap day and disables future dates', () => {
+test('calendar includes leap day and permits future dates', () => {
   const leapMonth = calendarMonth('2024-02')
   assert.equal(leapMonth.days.filter(day => day.date).length, 29)
   assert.equal(leapMonth.days.find(day => day.date === '2024-02-29').disabled, false)
-  const currentMonth = calendarMonth(today().slice(0, 7))
-  assert.equal(currentMonth.nextDisabled, true)
-  assert.ok(currentMonth.days.filter(day => day.date > today()).every(day => day.disabled))
+  const future = `${Number(today().slice(0, 4)) + 1}-01`
+  const futureMonth = calendarMonth(future)
+  assert.equal(futureMonth.nextDisabled, false)
+  assert.ok(futureMonth.days.filter(day => day.date).every(day => !day.disabled))
+  let stored
+  globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
+  try {
+    const futureEntry = entry('Cooperate', 'Defect', `${future}-01`)
+    save([{id: 'future', name: 'Future round', entries: [futureEntry]}])
+    assert.equal(load()[0].entries[0].date, futureEntry.date)
+  } finally {
+    delete globalThis.localStorage
+  }
 })
 
 test('theme choice persists and auto follows the system', async () => {
