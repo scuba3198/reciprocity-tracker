@@ -791,7 +791,6 @@ let make = () => {
               {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
             </div>
           </section>
-          <button className="settings-info-link" type_="button" onClick={_ => openThinkAhead()}>{React.string("Think Ahead →")}</button>
           <button className="settings-info-link" type_="button" onClick={_ => openInfo()}>{React.string("How the method works →")}</button>
         </section>
       } else if showInfo {
