@@ -70,7 +70,7 @@ export async function auth(action, email, password) {
         ? await client.auth.resetPasswordForEmail(email, {redirectTo: 'https://scuba3198.github.io/reciprocity-tracker/'})
         : action === 'update-password'
           ? await client.auth.updateUser({password})
-          : await client.auth.signOut()
+          : await client.auth.signOut({scope: 'local'})
   if (result.error) throw new Error(result.error.message)
   if (action === 'signup' && !result.data.session) return 'Check your email to confirm your account.'
   if (action === 'reset') return 'If that email has an account, a password reset link has been sent.'
