@@ -714,8 +714,8 @@ let make = () => {
             <p>{React.string("Download your people, interaction history, drafts, and CURE tolerance as a JSON file.")}</p>
             <div className="account-body">
               <button type_="button" disabled={!cloudReady} onClick={_ => downloadBackup(Storage.serialize(people), tolerance)}>{React.string("Download backup")}</button>
-              <label htmlFor="backup-file">{React.string("Choose a backup file to restore")}</label>
-              <input id="backup-file" type_="file" accept="application/json,.json" disabled={!cloudReady} onChange={readBackup} />
+              <input id="backup-file" className="backup-file-input" type_="file" accept="application/json,.json" disabled={!cloudReady} onChange={readBackup} />
+              <label className="backup-file-button" htmlFor="backup-file">{React.string("Choose backup file to restore")}</label>
             </div>
             {backupError != "" ? <p role="alert">{React.string(backupError)}</p> : React.null}
             {backupMessage != "" ? <p role="status">{React.string(backupMessage)}</p> : React.null}

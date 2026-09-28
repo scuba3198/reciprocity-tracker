@@ -89,6 +89,10 @@ input::placeholder { color: var(--muted) !important; opacity: .72; }
 .settings-section .account-body p { font-size: 13px; }
 .settings-section .account-body input { padding: 10px 11px; }
 .settings-section .account-body button, .settings-section .account-error button { min-height: 40px; font-size: 12px; }
+.settings-section .account-body .backup-file-input { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; }
+.settings-section .account-body .backup-file-button { display: grid; place-items: center; min-height: 40px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-soft); color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.settings-section .account-body .backup-file-input:focus-visible + .backup-file-button { outline: 2px solid var(--green); outline-offset: 2px; }
+.settings-section .account-body .backup-file-input:disabled + .backup-file-button { opacity: .5; cursor: not-allowed; }
 .settings-section .tolerance-options { max-width: 180px; }
 .settings-info-link { min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--green); font-size: 13px; font-weight: 700; cursor: pointer; }
 .detail { max-width: 1040px; padding: 52px clamp(24px, 5vw, 70px) 100px; }
