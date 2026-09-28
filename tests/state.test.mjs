@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction} from '../src/State.res.mjs'
-import {load, save, loadTolerance, saveTolerance} from '../src/Storage.res.mjs'
+import {load, save, loadTolerance, saveTolerance, decodeBackup, serialize} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 import {trendPath} from '../src/Dashboard.res.mjs'
+import {readFile} from '../src/LocalBackup.js'
 
 const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', Unable: 'Unable'})[value]
 const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
@@ -68,13 +69,42 @@ test('CURE tolerance defaults to 2 and persists the selected level in this brows
   }
   try {
     assert.equal(loadTolerance(), 2)
-    saveTolerance(1)
+    assert.equal(saveTolerance(1), true)
     assert.equal(loadTolerance(), 1)
     stored = 'invalid'
     assert.equal(loadTolerance(), 2)
+    globalThis.localStorage.setItem = () => { throw new Error('storage unavailable') }
+    assert.equal(saveTolerance(1), false)
   } finally {
     delete globalThis.localStorage
   }
+})
+
+test('local backups accept complete ledgers and reject malformed or partial data', () => {
+  const people = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'Defect', '2024-03-01')], drafts: [
+    {id: 'draft', move: '', myMove: 'Request', note: 'in progress', date: '', category: '', myActionDate: '', theirActionDate: ''},
+  ]}]
+  const backup = {version: 1, people: people.map(person => ({...person, entries: person.entries.map(item => ({...item, move: 'Defect', myMove: 'Cooperate'}))})), tolerance: 1}
+  assert.deepEqual(decodeBackup(JSON.stringify(backup)), [people, 1])
+  assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], entries: [{...people[0].entries[0], move: 'invalid'}]}]})), undefined)
+  assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], drafts: [null]}]})), undefined)
+  assert.equal(decodeBackup(JSON.stringify({...backup, people: [backup.people[0], backup.people[0]]})), undefined)
+  assert.equal(decodeBackup(JSON.stringify({...backup, tolerance: 3})), undefined)
+  assert.equal(decodeBackup('{"version":1,"people":[]}'), undefined)
+})
+
+test('local backup roundtrip preserves raw date text in saved drafts', () => {
+  const people = [{id: 'one', name: 'A person', entries: [], drafts: [
+    {id: 'draft', move: 'Request', myMove: 'Unable', note: 'still editing', date: '20240928', category: 'Work', myActionDate: '2024092', theirActionDate: ''},
+  ]}]
+  const backupJSON = JSON.stringify({version: 1, people: JSON.parse(serialize(people)), tolerance: 2})
+  assert.deepEqual(decodeBackup(backupJSON), [people, 2])
+})
+
+test('backup file input resets after capturing the selected file', async () => {
+  const input = {files: [{text: async () => 'backup'}], value: 'selected.json'}
+  assert.equal(await readFile(input), 'backup')
+  assert.equal(input.value, '')
 })
 
 test('CURE remembers the full history and recomputes the advice before each round', () => {

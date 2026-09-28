@@ -6,6 +6,8 @@ type cloudLedger = {people: string, tolerance: int}
 @module("./Supabase.js") external loadOrMigrate: (string, string, int) => promise<cloudLedger> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
 @module("./Supabase.js") external saveCloudTolerance: (string, int) => promise<unit> = "saveTolerance"
+@module("./LocalBackup.js") external downloadBackup: (string, int) => unit = "download"
+@module("./LocalBackup.js") external readBackupFile: 'a => promise<string> = "readFile"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
@@ -84,10 +86,27 @@ let make = () => {
   let (tolerance, setTolerance) = React.useState(Storage.loadTolerance)
   let (toleranceBusy, setToleranceBusy) = React.useState(_ => false)
   let (toleranceError, setToleranceError) = React.useState(_ => "")
+  let (backupPeople, setBackupPeople) = React.useState(_ => [])
+  let (backupTolerance, setBackupTolerance) = React.useState(_ => 2)
+  let (backupPreview, setBackupPreview) = React.useState(_ => false)
+  let (backupError, setBackupError) = React.useState(_ => "")
+  let (backupMessage, setBackupMessage) = React.useState(_ => "")
+  let (backupSaving, setBackupSaving) = React.useState(_ => false)
   let currentAccount = React.useRef("")
+  let accountGeneration = React.useRef(0)
+  let backupReadToken = React.useRef(0)
 
   React.useEffect0(() => {
     let unsubscribe = subscribeAuth((id, accountEmail, event) => {
+      if currentAccount.current != id {
+        accountGeneration.current = accountGeneration.current + 1
+        backupReadToken.current = backupReadToken.current + 1
+        setBackupPeople(_ => [])
+        setBackupPreview(_ => false)
+        setBackupError(_ => "")
+        setBackupMessage(_ => "")
+        setBackupSaving(_ => false)
+      }
       currentAccount.current = id
       if event == "PASSWORD_RECOVERY" {setPasswordRecovery(_ => true); setPassword(_ => "")}
       if event == "SIGNED_OUT" {setPasswordRecovery(_ => false)}
@@ -128,20 +147,34 @@ let make = () => {
   })
 
   let commit = next => {
-    if cloudReady {
+    if !cloudReady {
+      Promise.resolve(false)
+    } else {
+      let accountId = userId
       if userId == "" {
-        Storage.save(next)
+        try {
+          Storage.save(next)
+          setPeople(_ => next)
+          Promise.resolve(true)
+        } catch {
+        | _ => Promise.resolve(false)
+        }
       } else {
         setSyncing(_ => true)
+        setPeople(_ => next)
         saveCloud(userId, Storage.serialize(next))
         ->Promise.then(result => {
-          if result == "saved" {setSyncing(_ => false); setSyncError(_ => "")}
-          if result->String.startsWith("error:") {setSyncing(_ => false); setSyncError(_ => "Cloud sync failed. Your changes remain on this screen; retry when online.")}
-          Promise.resolve(())
+          if currentAccount.current == accountId {
+            setSyncing(_ => false)
+            setSyncError(_ => result == "saved" ? "" : "Cloud sync failed. Your changes remain on this screen; retry when online.")
+          }
+          Promise.resolve(result == "saved")
         })
-        ->ignore
+        ->Promise.catch(_ => {
+          if currentAccount.current == accountId {setSyncing(_ => false); setSyncError(_ => "Cloud sync failed. Your changes remain on this screen; retry when online.")}
+          Promise.resolve(false)
+        })
       }
-      setPeople(_ => next)
     }
   }
 
@@ -245,15 +278,73 @@ let make = () => {
   let chooseTolerance = choice => {
     setToleranceError(_ => "")
     if userId == "" {
-      Storage.saveTolerance(choice)
-      setTolerance(_ => choice)
+      let saved = Storage.saveTolerance(choice)
+      if saved {setTolerance(_ => choice)}
+      else {setToleranceError(_ => "Could not save tolerance on this device. Try again.")}
+      Promise.resolve(saved)
     } else {
+      let accountId = userId
       setToleranceBusy(_ => true)
       saveCloudTolerance(userId, choice)
-      ->Promise.then(_ => {if currentAccount.current == userId {setTolerance(_ => choice); setToleranceBusy(_ => false)}; Promise.resolve(())})
-      ->Promise.catch(_ => {if currentAccount.current == userId {setToleranceError(_ => "Could not save tolerance to your account. Try again."); setToleranceBusy(_ => false)}; Promise.resolve(())})
-      ->ignore
+      ->Promise.then(_ => {if currentAccount.current == accountId {setTolerance(_ => choice); setToleranceBusy(_ => false)}; Promise.resolve(true)})
+      ->Promise.catch(_ => {if currentAccount.current == accountId {setToleranceError(_ => "Could not save tolerance to your account. Try again."); setToleranceBusy(_ => false)}; Promise.resolve(false)})
     }
+  }
+
+  let readBackup = event => {
+    backupReadToken.current = backupReadToken.current + 1
+    let requestToken = backupReadToken.current
+    let accountToken = accountGeneration.current
+    setBackupPreview(_ => false)
+    setBackupError(_ => "")
+    setBackupMessage(_ => "")
+    readBackupFile(JsxEvent.Form.target(event))
+    ->Promise.then(raw => {
+      if backupReadToken.current == requestToken && accountGeneration.current == accountToken && raw != "" {
+        switch Storage.decodeBackup(raw) {
+        | Some((restoredPeople, restoredTolerance)) => {
+            setBackupPeople(_ => restoredPeople)
+            setBackupTolerance(_ => restoredTolerance)
+            setBackupPreview(_ => true)
+          }
+        | None => setBackupError(_ => "That file is not a complete, valid Reciprocity Tracker backup.")
+        }
+      }
+      Promise.resolve(())
+    })
+    ->Promise.catch(_ => {
+      if backupReadToken.current == requestToken && accountGeneration.current == accountToken {setBackupError(_ => "Could not read that backup file.")}
+      Promise.resolve(())
+    })
+    ->ignore
+  }
+
+  let restoreBackup = () => {
+    setBackupError(_ => "")
+    setBackupMessage(_ => "")
+    setBackupSaving(_ => true)
+    let accountId = userId
+    let generation = accountGeneration.current
+    commit(backupPeople)
+    ->Promise.then(peopleSaved => {
+      if !peopleSaved {
+        if currentAccount.current == accountId && accountGeneration.current == generation {setBackupError(_ => "Could not save the restored ledger. Retry when ready."); setBackupSaving(_ => false)}
+        Promise.resolve(())
+      } else if currentAccount.current != accountId || accountGeneration.current != generation {
+        Promise.resolve(())
+      } else {
+        chooseTolerance(backupTolerance)
+        ->Promise.then(toleranceSaved => {
+          if currentAccount.current == accountId && accountGeneration.current == generation {
+            setBackupSaving(_ => false)
+            if toleranceSaved {setBackupPreview(_ => false); setBackupMessage(_ => "Backup restored.")}
+            else {setBackupError(_ => "Could not save the restored CURE tolerance. Retry to finish restoring.")}
+          }
+          Promise.resolve(())
+        })
+      }
+    })
+    ->ignore
   }
 
   let openHome = () => {
@@ -354,7 +445,7 @@ let make = () => {
     let name = newName->String.trim
     if name != "" {
       let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
-      commit(Array.concat(people, [person]))
+      commit(Array.concat(people, [person]))->ignore
       setSelectedId(_ => person.id)
       setShowInfo(_ => false)
       setShowDashboard(_ => false)
@@ -393,7 +484,7 @@ let make = () => {
       } else {
         item
       }
-    }))
+    }))->ignore
     setDateError(_ => "")
     setActionDateError(_ => "")
   }
@@ -401,7 +492,7 @@ let make = () => {
   let discardDraft = (person: State.person) => {
     commit(people->Array.map(item => item.id == person.id
       ? {...item, drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
-      : item))
+      : item))->ignore
     startNewDraft()
   }
 
@@ -420,7 +511,7 @@ let make = () => {
             let entry: State.entry = {move: theirs, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
             commit(people->Array.map(item => item.id == person.id
               ? {...item, entries: Array.concat(item.entries, [entry]), drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
-              : item))
+              : item))->ignore
             startNewDraft()
             setCategoryOpen(_ => false)
             setActionDateError(_ => "")
@@ -463,7 +554,7 @@ let make = () => {
             let replacement: State.entry = {move, myMove, date, myActionDate, theirActionDate, note: editNote->String.trim, category: editCategory}
             commit(people->Array.map(item => item.id == person.id
               ? {...item, entries: State.replaceEntry(item.entries, editingEntryIndex, replacement)}
-              : item))
+              : item))->ignore
             setEditingEntryIndex(_ => -1)
             setEntryEditError(_ => "")
           }
@@ -476,7 +567,7 @@ let make = () => {
   }
 
   let remove = (person: State.person) => {
-    commit(people->Array.filter(item => item.id != person.id))
+    commit(people->Array.filter(item => item.id != person.id))->ignore
     setSelectedId(_ => "")
     setDeleteTargetId(_ => "")
     setEditTargetId(_ => "")
@@ -490,7 +581,7 @@ let make = () => {
       setEditingEntryIndex(_ => -1)
       commit(people->Array.map(item => item.id == person.id
         ? {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)}
-        : item))
+        : item))->ignore
     }
   }
 
@@ -523,7 +614,7 @@ let make = () => {
     ReactEvent.Form.preventDefault(event)
     let name = editName->String.trim
     if name != "" {
-      commit(people->Array.map(person => person.id == editTargetId ? {...person, name} : person))
+      commit(people->Array.map(person => person.id == editTargetId ? {...person, name} : person))->ignore
       setEditTargetId(_ => "")
     }
   }
@@ -613,10 +704,26 @@ let make = () => {
           <section className="settings-section" ariaLabel="CURE tolerance">
             <h2>{React.string("CURE tolerance")}</h2><p>{React.string("Choose how many points of difference CURE allows before recommending a response.")}</p>
             <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
-              {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)}>{React.string(Int.toString(choice))}</button>)->React.array}
+              {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)->ignore}>{React.string(Int.toString(choice))}</button>)->React.array}
             </div>
             {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
             {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
+          </section>
+          <section className="settings-section" ariaLabel="Local backup">
+            <h2>{React.string("Local backup")}</h2>
+            <p>{React.string("Download your people, interaction history, drafts, and CURE tolerance as a JSON file.")}</p>
+            <div className="account-body">
+              <button type_="button" disabled={!cloudReady} onClick={_ => downloadBackup(Storage.serialize(people), tolerance)}>{React.string("Download backup")}</button>
+              <label htmlFor="backup-file">{React.string("Choose a backup file to restore")}</label>
+              <input id="backup-file" type_="file" accept="application/json,.json" disabled={!cloudReady} onChange={readBackup} />
+            </div>
+            {backupError != "" ? <p role="alert">{React.string(backupError)}</p> : React.null}
+            {backupMessage != "" ? <p role="status">{React.string(backupMessage)}</p> : React.null}
+            {backupPreview ? <div className="account-body">
+              <p role="status">{React.string("This will replace the current ledger with " ++ Int.toString(Array.length(backupPeople)) ++ " people and set CURE tolerance to " ++ Int.toString(backupTolerance) ++ ".")}</p>
+              <button type_="button" disabled={!cloudReady || backupSaving || syncing || toleranceBusy} onClick={_ => restoreBackup()}>{React.string(backupSaving ? "Restoring…" : "Replace current ledger")}</button>
+              <button type_="button" onClick={_ => setBackupPreview(_ => false)}>{React.string("Cancel")}</button>
+            </div> : React.null}
           </section>
           <section className="settings-section" ariaLabel="Appearance">
             <h2>{React.string("Appearance")}</h2><p>{React.string("Choose the color theme for this device.")}</p>

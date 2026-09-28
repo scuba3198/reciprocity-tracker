@@ -3,6 +3,7 @@
 @scope("localStorage") @val external getItem: string => Nullable.t<string> = "getItem"
 @scope("localStorage") @val external setItem: (string, string) => unit = "setItem"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
+@module("./LocalBackup.js") external decodeBackupJSON: string => option<(string, int)> = "decode"
 
 let key = "good-faith.people.v2"
 let toleranceKey = "good-faith.cure-tolerance"
@@ -13,8 +14,9 @@ let loadTolerance = () => try {
 }
 let saveTolerance = tolerance => try {
   setItem(toleranceKey, Int.toString(tolerance))
+  true
 } catch {
-| _ => ()
+| _ => false
 }
 
 let field = (obj, name) => Dict.get(obj, name)
@@ -109,6 +111,11 @@ let decodePeople = (raw: string): array<State.person> => {
   } catch {
   | _ => []
   }
+}
+
+let decodeBackup = (raw: string) => switch decodeBackupJSON(raw) {
+| Some((people, tolerance)) => Some((decodePeople(people), tolerance))
+| None => None
 }
 
 let load = (): array<State.person> => switch getItem(key)->Nullable.toOption {
