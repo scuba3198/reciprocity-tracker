@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance, decodeBackup, serialize} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 import {trendPath} from '../src/Dashboard.res.mjs'
 import {readFile} from '../src/LocalBackup.js'
 
-const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', Unable: 'Unable'})[value]
+const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', Unable: 'Unable', NoAction: 'NoAction'})[value]
 const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
 
 test('dashboard line rises when the defection difference decreases', () => {
@@ -14,11 +14,21 @@ test('dashboard line rises when the defection difference decreases', () => {
   assert.equal(trendPath([0, -1, 0]), '0,20 30,4 60,20')
 })
 
-test('choices map to actions and allow a Requested/Unable round', () => {
-  assert.equal(validChoices('Cooperate', 'NoAction'), false)
+test('choices map to actions and allow a NoAction side when the other side acts', () => {
+  assert.equal(validChoices('Cooperate', 'NoAction'), true)
+  assert.equal(validChoices('Defect', 'NoAction'), true)
+  assert.equal(validChoices('NoAction', 'Cooperate'), true)
+  assert.equal(validChoices('NoAction', 'Defect'), true)
+  assert.equal(validChoices('NoAction', 'NoAction'), false)
   assert.equal(validChoices('Request', 'Cooperate'), true)
   assert.equal(validChoices('Cooperate', 'Request'), true)
+  assert.equal(validChoices('Request', 'Defect'), true)
+  assert.equal(validChoices('Defect', 'Request'), true)
   assert.equal(validChoices('Request', 'Request'), false)
+  assert.equal(validChoices('Request', 'NoAction'), false)
+  assert.equal(validChoices('NoAction', 'Request'), false)
+  assert.equal(validChoices('Unable', 'NoAction'), false)
+  assert.equal(validChoices('NoAction', 'Unable'), false)
   assert.equal(validChoices('Request', 'Unable'), true)
   assert.equal(validChoices('Unable', 'Request'), true)
   assert.equal(validChoices('Unable', 'Unable'), false)
@@ -27,9 +37,9 @@ test('choices map to actions and allow a Requested/Unable round', () => {
   assert.equal(actionFromChoice('Defect'), 'Defected')
   assert.equal(actionFromChoice('Request'), 'Requested')
   assert.equal(actionFromChoice('Unable'), 'Unable')
-  assert.equal(actionFromChoice('NoAction'), undefined)
+  assert.equal(actionFromChoice('NoAction'), 'NoAction')
   assert.equal(actionFromChoice(''), undefined)
-  assert.deepEqual(['Cooperated', 'Defected', 'Requested', 'Unable'].map(choiceFromAction), ['Cooperate', 'Defect', 'Request', 'Unable'])
+  assert.deepEqual(['Cooperated', 'Defected', 'Requested', 'Unable', 'NoAction'].map(choiceFromAction), ['Cooperate', 'Defect', 'Request', 'Unable', 'NoAction'])
 })
 
 test('CURE uses their total defections minus yours with inclusive tolerance 1', () => {
@@ -144,6 +154,25 @@ test('one-sided defection changes CURE only for the acting side; edits and backd
   assert.equal(next([entry('Defect', 'Request', '2024-03-01'), oneSided]).difference, 0)
 })
 
+test('NoAction is neutral to CURE and entries can be edited to or from it', () => {
+  for (const [mine, theirs, difference] of [
+    ['Cooperate', 'NoAction', 0], ['Defect', 'NoAction', -1],
+    ['NoAction', 'Cooperate', 0], ['NoAction', 'Defect', 1],
+  ]) assert.equal(next([entry(mine, theirs, '2024-03-01')]).difference, difference)
+
+  const prior = entry('Defect', 'Cooperate', '2024-03-01')
+  const edited = replaceEntry([prior], 0, entry('NoAction', 'Cooperate', prior.date))
+  assert.equal(next(edited).difference, 0)
+  assert.equal(next(replaceEntry(edited, 0, prior)).difference, -1)
+  assert.equal(next([entry('Defect', 'NoAction', '2024-03-01')]).move, 'Cooperate')
+  assert.equal(next([entry('NoAction', 'Defect', '2024-03-01')]).move, 'Cooperate')
+  assert.equal(differentFromRecommendation('NoAction', 'Defect'), false)
+  assert.equal(differentFromRecommendation('Cooperated', 'Cooperate'), false)
+  assert.equal(differentFromRecommendation('Cooperated', 'Defect'), true)
+  assert.equal(differentFromRecommendation('Defected', 'Cooperate'), true)
+  assert.equal(differentFromRecommendation('Defected', 'Defect'), false)
+})
+
 test('history edits map duplicate-date rows to the exact source entry and recompute CURE', () => {
   const entries = [
     {...entry('Cooperate', 'Defect', '2024-03-01'), note: 'first'},
@@ -243,22 +272,40 @@ test('save persists both action dates', () => {
   }
 })
 
-test('Request and Unable roundtrip; NoAction entries are rejected', () => {
+test('Request, Unable, and NoAction roundtrip; NoAction/NoAction entries are rejected', () => {
   let stored
   globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
   try {
-    const people = [{id: 'one', name: 'A person', entries: [entry('Request', 'Cooperate', '2024-03-03'), entry('Request', 'Unable', '2024-03-04')], drafts: []}]
+    const people = [{id: 'one', name: 'A person', entries: [entry('Request', 'Cooperate', '2024-03-03'), entry('Request', 'Unable', '2024-03-04'), entry('Defect', 'NoAction', '2024-03-05')], drafts: []}]
     save(people)
     assert.equal(JSON.parse(stored)[0].entries[0].myMove, 'Request')
     assert.equal(JSON.parse(stored)[0].entries[1].move, 'Unable')
+    assert.equal(JSON.parse(stored)[0].entries[2].move, 'NoAction')
     assert.deepEqual(load(), people)
-    for (const invalid of [undefined, 'garbage', null, 'NoAction']) {
+    const invalidBoth = [{...people[0], entries: [entry('NoAction', 'NoAction', '2024-03-06')]}]
+    globalThis.localStorage.getItem = () => JSON.stringify(invalidBoth)
+    assert.deepEqual(load(), [])
+    for (const invalid of [undefined, 'garbage', null]) {
       const bad = JSON.parse(stored)
       if (invalid === undefined) delete bad[0].entries[0].myMove
       else bad[0].entries[0].myMove = invalid
       globalThis.localStorage.getItem = () => JSON.stringify(bad)
       assert.deepEqual(load(), [])
     }
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('old C/D entries still load and NoAction backups restore', () => {
+  const oldEntry = {myMove: 'Cooperate', move: 'Defect', note: '', date: '2024-03-01'}
+  const oldPerson = {id: 'old', name: 'Older person', entries: [oldEntry], drafts: []}
+  globalThis.localStorage = {getItem: () => JSON.stringify([oldPerson])}
+  try {
+    assert.equal(load()[0].entries[0].myMove, 'Cooperated')
+    const withNoAction = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'NoAction', '2024-03-02')], drafts: []}]
+    const backup = {version: 1, people: JSON.parse(serialize(withNoAction)), tolerance: 2}
+    assert.deepEqual(decodeBackup(JSON.stringify(backup)), [withNoAction, 2, '[]'])
   } finally {
     delete globalThis.localStorage
   }

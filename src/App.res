@@ -605,7 +605,7 @@ let make = () => {
 
   let confirmRound = (person: State.person) => {
     if !State.validChoices(myMove, theirMove) {
-      setDateError(_ => "Choose a role for each person. Include a Cooperated or Defected role, or pair Requested with Unable.")
+      setDateError(_ => "Choose a role for each person. Record at least one Cooperated or Defected action, or a Requested/Unable pair.")
     } else {switch (State.actionFromChoice(myMove), State.actionFromChoice(theirMove), interactionDate->normalizeDate->Nullable.toOption) {
     | (_, _, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits.")
     | (Some(mine), Some(theirs), Some(date)) => {
@@ -649,7 +649,7 @@ let make = () => {
 
   let saveEntryEdit = (person: State.person) => {
     if !State.validChoices(editMyMove, editTheirMove) {
-      setEntryEditError(_ => "Choose a role for each person. Include a Cooperated or Defected role, or pair Requested with Unable.")
+      setEntryEditError(_ => "Choose a role for each person. Record at least one Cooperated or Defected action, or a Requested/Unable pair.")
     } else {switch (State.actionFromChoice(editMyMove), State.actionFromChoice(editTheirMove), editDate->normalizeDate->Nullable.toOption) {
     | (Some(myMove), Some(move), Some(date)) => {
         let myInput = editMyActionDate->String.trim
@@ -923,7 +923,7 @@ let make = () => {
             </section>
 
             <section className="record-section">
-              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Classify each person's role as Cooperated, Defected, Requested, or Unable.")}</p></div>
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Record what each person did. Choose No action when one person had no role in the interaction.")}</p></div>
               <div className="pending-drafts" ariaLabel="Pending drafts">
                 <h3>{React.string("Pending rounds")}</h3>
                 {person.drafts->Array.mapWithIndex((draft, index) => {
@@ -944,8 +944,8 @@ let make = () => {
               </div>
               {calendarPanel("round", interactionDate, "Choose round completion date")}
               {dateError != "" ? <p className="date-error" role="alert">{React.string(dateError)}</p> : React.null}
-              <label className="note-label" htmlFor="entry-note">{React.string("What is this about? (required to confirm)")}</label>
-              <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 required=true onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
+              <label className="note-label" htmlFor="entry-note">{React.string("What is this about? (optional)")}</label>
+              <input id="entry-note" className="note-input" type_="text" placeholder="What was this interaction about?" value={note} maxLength=180 onChange={event => setNote(_ => JsxEvent.Form.target(event)["value"])} />
               <div className="action-dates-field">
                 <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => {setActionDatesOpen(previous => !previous); setCalendarTarget(_ => "")}}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
                 {actionDatesOpen
@@ -971,12 +971,14 @@ let make = () => {
                   <button type_="button" ariaPressed={myMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (myMove == "Defect" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
                   <button type_="button" ariaPressed={myMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (myMove == "Request" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   <button type_="button" ariaPressed={myMove == "Unable" ? #"true" : #"false"} className={"action-request" ++ (myMove == "Unable" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Unable" ? "" : "Unable")}>{React.string("Unable")}</button>
+                  <button type_="button" ariaPressed={myMove == "NoAction" ? #"true" : #"false"} className={"action-request" ++ (myMove == "NoAction" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "NoAction" ? "" : "NoAction")}>{React.string("No action")}</button>
                 </div>
-                {myMove == "" ? <p className="own-move-hint">{React.string("Choose an action for each person before confirming.")}</p> : React.null}
+                {myMove == "" ? <p className="own-move-hint">{React.string("Choose a role for each person before confirming. Use No action when nothing was required or done.")}</p> : React.null}
                 <p className="own-move-hint">{React.string("Cooperate (C): Helped, contributed, kept promise, or otherwise acted cooperatively.")}</p>
                 <p className="own-move-hint">{React.string("Defect (D): Refused, withheld help, broke an agreement, exploited the other person, or otherwise acted uncooperatively.")}</p>
                 <p className="own-move-hint">{React.string("Request (R): Asked for help, a favor, or cooperation. A request is neutral and does not count as cooperation or defection.")}</p>
                 <p className="own-move-hint">{React.string("Unable (U): You/They were genuinely unable to help because of circumstances outside your reasonable control. This does not count as cooperation or defection. Examples include being sick, unavailable, lacking the needed resources, or having a genuine conflicting obligation.")}</p>
+                <p className="own-move-hint">{React.string("No action (Ø): Nothing was required or done by this person. Neutral and does not affect CURE.")}</p>
               </div>
               <div className="own-move-field">
                 <p className="note-label">{React.string("What did they do?")}</p>
@@ -985,13 +987,14 @@ let make = () => {
                   <button type_="button" ariaPressed={theirMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (theirMove == "Defect" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
                   <button type_="button" ariaPressed={theirMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "Request" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   <button type_="button" ariaPressed={theirMove == "Unable" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "Unable" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Unable" ? "" : "Unable")}>{React.string("Unable")}</button>
+                  <button type_="button" ariaPressed={theirMove == "NoAction" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "NoAction" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "NoAction" ? "" : "NoAction")}>{React.string("No action")}</button>
                 </div>
               </div>
-              <p className="own-move-hint">{React.string("Use the same meanings for what they did. A round needs a Cooperated or Defected role, or a Requested/Unable pair.")}</p>
+              <p className="own-move-hint">{React.string("Use the same meanings for what they did. Confirm a Cooperated or Defected action, or a Requested/Unable pair. No action on both sides is not a round.")}</p>
               {isSavedDraft ? <p className="own-move-hint">{React.string("Edit this saved draft, then save, confirm, or discard it.")}</p> : React.null}
               <div className="draft-actions">
                 <button type_="button" className="move-button" onClick={_ => saveDraft(person)}>{React.string(isSavedDraft ? "Save draft changes" : "Save draft")}</button>
-                <button type_="button" className="move-button cooperate" disabled={!State.validChoices(myMove, theirMove) || note->String.trim == ""} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
+                <button type_="button" className="move-button cooperate" disabled={!State.validChoices(myMove, theirMove)} onClick={_ => confirmRound(person)}>{React.string("Confirm round")}</button>
                 {isSavedDraft ? <button type_="button" className="move-button defect" onClick={_ => discardDraft(person)}>{React.string("Discard draft")}</button> : React.null}
               </div>
             </section>
@@ -1002,10 +1005,10 @@ let make = () => {
                 ? <p className="history-empty">{React.string("No interactions yet.")}</p>
                 : <ol className="history-list">{history->Array.map(item => {
                     let entry = item.entry
-                    let different = switch entry.myMove { | State.Cooperated => item.recommended != State.Cooperate | State.Defected => item.recommended != State.Defect | _ => false }
+                    let different = State.differentFromRecommendation(entry.myMove, item.recommended)
                     let hasActionDates = entry.myActionDate != "" || entry.theirActionDate != ""
                     <li key={Int.toString(item.sourceIndex)} className={switch entry.move { | State.Cooperated => "cooperate" | State.Defected => "defect" | _ => "" }}>
-                      <span className="history-symbol">{React.string(switch entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" })}</span>
+                      <span className="history-symbol">{React.string(switch entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" | State.NoAction => "Ø" })}</span>
                       <div>
                         <strong>{React.string("Them: " ++ State.actionLabel(entry.move))}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}
                         <p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}{!hasActionDates ? <span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ State.actionLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span> : React.null}</p>
@@ -1022,11 +1025,11 @@ let make = () => {
                           ? <form className="entry-edit-form" ariaLabel="Edit confirmed entry" onSubmit={event => {ReactEvent.Form.preventDefault(event); saveEntryEdit(person)}}>
                               <label htmlFor="edit-my-move">{React.string("Your move")}</label>
                               <select id="edit-my-move" value={editMyMove} onChange={event => setEditMyMove(_ => JsxEvent.Form.target(event)["value"])}>
-                                <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option>
+                                <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option><option value="NoAction">{React.string("No action")}</option>
                               </select>
                               <label htmlFor="edit-their-move">{React.string("Their move")}</label>
                               <select id="edit-their-move" value={editTheirMove} onChange={event => setEditTheirMove(_ => JsxEvent.Form.target(event)["value"])}>
-                                <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option>
+                                <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option><option value="NoAction">{React.string("No action")}</option>
                               </select>
                               <label htmlFor="edit-round-date">{React.string("Completion date")}</label><input id="edit-round-date" type_="date" required=true value={editDate} onChange={event => setEditDate(_ => JsxEvent.Form.target(event)["value"])} />
                               <label htmlFor="edit-my-action-date">{React.string("Your action date (optional)")}</label><input id="edit-my-action-date" type_="date" value={editMyActionDate} onChange={event => setEditMyActionDate(_ => JsxEvent.Form.target(event)["value"])} />

@@ -1,7 +1,7 @@
 import {normalize} from './InteractionDate.js'
 import {decode as decodeScenarios} from './ThinkAheadStorage.js'
 
-const choices = new Set(['Cooperate', 'Defect', 'Request', 'Unable'])
+const choices = new Set(['Cooperate', 'Defect', 'Request', 'Unable', 'NoAction'])
 const fields = (value, names) => value && typeof value === 'object' && !Array.isArray(value) && names.every(name => Object.hasOwn(value, name))
 const text = value => typeof value === 'string'
 const validDate = value => value === '' || normalize(value) === value

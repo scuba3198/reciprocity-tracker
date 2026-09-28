@@ -34,6 +34,7 @@ let actionField = (obj, name) => switch stringField(obj, name) {
 | Some("Defect") => Some(State.Defected)
 | Some("Request") => Some(State.Requested)
 | Some("Unable") => Some(State.Unable)
+| Some("NoAction") => Some(State.NoAction)
 | _ => None
 }
 let decodeDraft = (json, id) => switch JSON.Decode.object(json) {

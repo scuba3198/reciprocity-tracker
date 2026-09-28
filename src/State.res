@@ -1,5 +1,5 @@
 type move = Cooperate | Defect
-type action = Cooperated | Defected | Requested | Unable
+type action = Cooperated | Defected | Requested | Unable | NoAction
 type entry = {move: action, myMove: action, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type draft = {id: string, move: string, myMove: string, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type person = {id: string, name: string, entries: array<entry>, drafts: array<draft>}
@@ -19,6 +19,7 @@ let actionFromChoice = choice => switch choice {
 | "Defect" => Some(Defected)
 | "Request" => Some(Requested)
 | "Unable" => Some(Unable)
+| "NoAction" => Some(NoAction)
 | _ => None
 }
 let choiceFromAction = action => switch action {
@@ -26,9 +27,10 @@ let choiceFromAction = action => switch action {
 | Defected => "Defect"
 | Requested => "Request"
 | Unable => "Unable"
+| NoAction => "NoAction"
 }
 let validChoices = (mine, theirs) => {
-  let chosen = choice => choice == "Cooperate" || choice == "Defect" || choice == "Request" || choice == "Unable"
+  let chosen = choice => choice == "Cooperate" || choice == "Defect" || choice == "Request" || choice == "Unable" || choice == "NoAction"
   let acted = choice => choice == "Cooperate" || choice == "Defect"
   chosen(mine) && chosen(theirs) && (acted(mine) || acted(theirs) || (mine == "Request" && theirs == "Unable") || (mine == "Unable" && theirs == "Request"))
 }
@@ -57,4 +59,10 @@ let history = (entries: array<entry>, ~tolerance=2): array<historyItem> => {
 let replaceEntry = (entries: array<entry>, index: int, replacement: entry) =>
   entries->Array.mapWithIndex((entry, current) => current == index ? replacement : entry)
 
-let actionLabel = action => switch action { | Cooperated => "Cooperated" | Defected => "Defected" | Requested => "Requested" | Unable => "Unable" }
+let differentFromRecommendation = (action, recommended) => switch action {
+| Cooperated => recommended != Cooperate
+| Defected => recommended != Defect
+| Requested | Unable | NoAction => false
+}
+
+let actionLabel = action => switch action { | Cooperated => "Cooperated" | Defected => "Defected" | Requested => "Requested" | Unable => "Unable" | NoAction => "No action" }
