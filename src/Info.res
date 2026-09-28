@@ -41,6 +41,11 @@ let make = () =>
       <p>{React.string("Use the log to notice patterns and slow down a decision. Talk, clarify, or leave a harmful situation when that fits the circumstances; the app cannot make those judgments for you.")}</p>
     </section>
 
+    <section className="info-section">
+      <h2>{React.string("Think Ahead is a separate decision tool")}</h2>
+      <p>{React.string("Use Think Ahead for a one-off or sequential decision with important future consequences. Backward induction means asking whether someone would still have a reason to take a future action when that moment arrives. Expected utility combines each choice’s immediate value with possible consequences, weighted by rough likelihood. The qualitative labels are your approximate judgments, not objective probabilities. Close scores can reverse if your assumptions change. Think Ahead does not log rounds or change CURE's difference, tolerance, or historical advice. Use CURE for repeated reciprocal interactions with the same person.")}</p>
+    </section>
+
     <section className="info-sources" ariaLabel="Research sources">
       <h2>{React.string("Read the research")}</h2>
       <ul>

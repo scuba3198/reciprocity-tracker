@@ -1,4 +1,5 @@
 import {normalize} from './InteractionDate.js'
+import {decode as decodeScenarios} from './ThinkAheadStorage.js'
 
 const choices = new Set(['Cooperate', 'Defect', 'Request', 'Unable'])
 const fields = (value, names) => value && typeof value === 'object' && !Array.isArray(value) && names.every(name => Object.hasOwn(value, name))
@@ -27,14 +28,17 @@ export function decode(raw) {
     if (!fields(backup, ['version', 'people', 'tolerance']) || backup.version !== 1 ||
         ![1, 2].includes(backup.tolerance) || !Array.isArray(backup.people) || !backup.people.every(validPerson) ||
         new Set(backup.people.map(person => person.id)).size !== backup.people.length) return undefined
-    return [JSON.stringify(backup.people), backup.tolerance]
+    if (backup.scenarios !== undefined && !Array.isArray(backup.scenarios)) return undefined
+    const scenarios = backup.scenarios === undefined ? [] : decodeScenarios(backup.scenarios)
+    if (backup.scenarios !== undefined && scenarios.length !== backup.scenarios.length) return undefined
+    return [JSON.stringify(backup.people), backup.tolerance, JSON.stringify(scenarios)]
   } catch {
     return undefined
   }
 }
 
-export function download(peopleJSON, tolerance) {
-  const blob = new Blob([JSON.stringify({version: 1, people: JSON.parse(peopleJSON), tolerance}, null, 2)], {type: 'application/json'})
+export function download(peopleJSON, tolerance, scenariosJSON = '[]') {
+  const blob = new Blob([JSON.stringify({version: 1, people: JSON.parse(peopleJSON), tolerance, scenarios: JSON.parse(scenariosJSON)}, null, 2)], {type: 'application/json'})
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

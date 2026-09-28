@@ -3,7 +3,7 @@
 @scope("localStorage") @val external getItem: string => Nullable.t<string> = "getItem"
 @scope("localStorage") @val external setItem: (string, string) => unit = "setItem"
 @module("./InteractionDate.js") external normalizeDate: string => Nullable.t<string> = "normalize"
-@module("./LocalBackup.js") external decodeBackupJSON: string => option<(string, int)> = "decode"
+@module("./LocalBackup.js") external decodeBackupJSON: string => option<(string, int, string)> = "decode"
 
 let key = "good-faith.people.v2"
 let toleranceKey = "good-faith.cure-tolerance"
@@ -114,7 +114,7 @@ let decodePeople = (raw: string): array<State.person> => {
 }
 
 let decodeBackup = (raw: string) => switch decodeBackupJSON(raw) {
-| Some((people, tolerance)) => Some((decodePeople(people), tolerance))
+| Some((people, tolerance, scenarios)) => Some((decodePeople(people), tolerance, scenarios))
 | None => None
 }
 

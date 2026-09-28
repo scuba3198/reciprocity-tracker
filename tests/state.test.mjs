@@ -85,7 +85,7 @@ test('local backups accept complete ledgers and reject malformed or partial data
     {id: 'draft', move: '', myMove: 'Request', note: 'in progress', date: '', category: '', myActionDate: '', theirActionDate: ''},
   ]}]
   const backup = {version: 1, people: people.map(person => ({...person, entries: person.entries.map(item => ({...item, move: 'Defect', myMove: 'Cooperate'}))})), tolerance: 1}
-  assert.deepEqual(decodeBackup(JSON.stringify(backup)), [people, 1])
+  assert.deepEqual(decodeBackup(JSON.stringify(backup)), [people, 1, '[]'])
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], entries: [{...people[0].entries[0], move: 'invalid'}]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], drafts: [null]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [backup.people[0], backup.people[0]]})), undefined)
@@ -98,7 +98,7 @@ test('local backup roundtrip preserves raw date text in saved drafts', () => {
     {id: 'draft', move: 'Request', myMove: 'Unable', note: 'still editing', date: '20240928', category: 'Work', myActionDate: '2024092', theirActionDate: ''},
   ]}]
   const backupJSON = JSON.stringify({version: 1, people: JSON.parse(serialize(people)), tolerance: 2})
-  assert.deepEqual(decodeBackup(backupJSON), [people, 2])
+  assert.deepEqual(decodeBackup(backupJSON), [people, 2, '[]'])
 })
 
 test('backup file input resets after capturing the selected file', async () => {

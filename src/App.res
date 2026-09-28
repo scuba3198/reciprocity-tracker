@@ -2,11 +2,16 @@ type calendarDay = {date: string, label: string, accessible: string, disabled: b
 type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
 @module("./Supabase.js") external auth: (string, string, string) => promise<string> = "auth"
 @module("./Supabase.js") external subscribeAuth: ((string, string, string) => unit) => (unit => unit) = "subscribe"
-type cloudLedger = {people: string, tolerance: int}
-@module("./Supabase.js") external loadOrMigrate: (string, string, int) => promise<cloudLedger> = "loadOrMigrate"
+type cloudLedger = {people: string, scenarios: string, scenariosReady: bool, tolerance: int}
+@module("./Supabase.js") external loadOrMigrate: (string, string, int, string) => promise<cloudLedger> = "loadOrMigrate"
 @module("./Supabase.js") external saveCloud: (string, string) => promise<string> = "save"
+@module("./Supabase.js") external saveCloudScenarios: (string, string) => promise<string> = "saveScenarios"
 @module("./Supabase.js") external saveCloudTolerance: (string, int) => promise<unit> = "saveTolerance"
-@module("./LocalBackup.js") external downloadBackup: (string, int) => unit = "download"
+@module("./LocalBackup.js") external downloadBackup: (string, int, string) => unit = "download"
+@module("./ThinkAheadStorage.js") external loadScenarios: unit => array<ThinkAhead.scenario> = "load"
+@module("./ThinkAheadStorage.js") external saveScenariosLocal: array<ThinkAhead.scenario> => unit = "save"
+@module("./ThinkAheadStorage.js") external decodeScenarios: string => array<ThinkAhead.scenario> = "decode"
+@module("./ThinkAheadStorage.js") external serializeScenarios: array<ThinkAhead.scenario> => string = "serialize"
 @module("./LocalBackup.js") external readBackupFile: 'a => promise<string> = "readFile"
 @module("./InteractionDate.js") external today: unit => string = "today"
 @module("./InteractionDate.js") external yesterday: unit => string = "yesterday"
@@ -27,6 +32,7 @@ let navIcon = kind => {
   | "people" => "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
   | "ledger" => "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 8h10M7 12h10M7 16h7"
   | "insights" => "M4 20V11M10 20V5M16 20v-8M22 20V8M2 20h20"
+  | "think" => "M12 3a7 7 0 0 0-4 12v3h8v-3a7 7 0 0 0-4-12ZM9 21h6M9 15h6"
   | _ => "M10 2h4l.6 2.2 1.5.9 2.2-.6 2 3.5-1.6 1.6v1.8l1.6 1.6-2 3.5-2.2-.6-1.5.9L14 20h-4l-.6-2.2-1.5-.9-2.2.6-2-3.5 1.6-1.6v-1.8L3.7 9l2-3.5 2.2.6 1.5-.9L10 2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"
   }
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" ariaHidden=true><path d={shape} /></svg>
@@ -78,16 +84,20 @@ let make = () => {
   let (returnView, setReturnView) = React.useState(_ => "home")
   let (showDashboard, setShowDashboard) = React.useState(_ => true)
   let (showInsights, setShowInsights) = React.useState(_ => false)
+  let (showThinkAhead, setShowThinkAhead) = React.useState(_ => false)
   let (showSettings, setShowSettings) = React.useState(_ => false)
   let (addOpen, setAddOpen) = React.useState(_ => false)
   let (sidebarCollapsed, setSidebarCollapsed) = React.useState(_ => false)
   let (searchQuery, setSearchQuery) = React.useState(_ => "")
   let (theme, setTheme) = React.useState(loadTheme)
   let (tolerance, setTolerance) = React.useState(Storage.loadTolerance)
+  let (scenarios, setScenarios) = React.useState(loadScenarios)
+  let (scenariosReady, setScenariosReady) = React.useState(_ => true)
   let (toleranceBusy, setToleranceBusy) = React.useState(_ => false)
   let (toleranceError, setToleranceError) = React.useState(_ => "")
   let (backupPeople, setBackupPeople) = React.useState(_ => [])
   let (backupTolerance, setBackupTolerance) = React.useState(_ => 2)
+  let (backupScenarios, setBackupScenarios) = React.useState(_ => [])
   let (backupPreview, setBackupPreview) = React.useState(_ => false)
   let (backupError, setBackupError) = React.useState(_ => "")
   let (backupMessage, setBackupMessage) = React.useState(_ => "")
@@ -102,6 +112,7 @@ let make = () => {
         accountGeneration.current = accountGeneration.current + 1
         backupReadToken.current = backupReadToken.current + 1
         setBackupPeople(_ => [])
+        setBackupScenarios(_ => [])
         setBackupPreview(_ => false)
         setBackupError(_ => "")
         setBackupMessage(_ => "")
@@ -115,6 +126,7 @@ let make = () => {
       setEmail(_ => accountEmail)
       setAuthError(_ => "")
       setPeople(_ => [])
+      setScenarios(_ => [])
       setSelectedId(_ => "")
       setEditingEntryIndex(_ => -1)
       setEntryEditError(_ => "")
@@ -122,15 +134,19 @@ let make = () => {
       setToleranceError(_ => "")
       if id == "" {
         setPeople(_ => Storage.load())
+        setScenarios(_ => loadScenarios())
+        setScenariosReady(_ => true)
         setTolerance(_ => Storage.loadTolerance())
         setCloudReady(_ => true)
         setSyncError(_ => "")
       } else {
         setCloudReady(_ => false)
-        loadOrMigrate(id, Storage.serialize(Storage.load()), Storage.loadTolerance())
+        loadOrMigrate(id, Storage.serialize(Storage.load()), Storage.loadTolerance(), serializeScenarios(loadScenarios()))
         ->Promise.then(ledger => {
           if currentAccount.current == id {
             setPeople(_ => Storage.decodePeople(ledger.people))
+            setScenarios(_ => decodeScenarios(ledger.scenarios))
+            setScenariosReady(_ => ledger.scenariosReady)
             setTolerance(_ => ledger.tolerance)
             setCloudReady(_ => true)
           }
@@ -178,21 +194,45 @@ let make = () => {
     }
   }
 
+  let commitScenarios = next => {
+    if !cloudReady || !scenariosReady {
+      Promise.resolve(false)
+    } else {
+      let accountId = userId
+      if userId == "" {
+        try {saveScenariosLocal(next); setScenarios(_ => next); Promise.resolve(true)} catch { | _ => setSyncError(_ => "Could not save Think Ahead in this browser."); Promise.resolve(false) }
+      } else {
+        setSyncing(_ => true)
+        saveCloudScenarios(userId, serializeScenarios(next))
+        ->Promise.then(result => {
+          if currentAccount.current == accountId {
+            if result == "saved" {setScenarios(_ => next)}
+            setSyncing(_ => false)
+            setSyncError(_ => result == "saved" ? "" : "Think Ahead could not sync. Retry when online.")
+          }
+          Promise.resolve(result == "saved")
+        })
+      }
+    }
+  }
+
   let retrySync = () => {
     if userId == "" || !cloudReady {
       setCloudReady(_ => false)
-      loadOrMigrate(userId, Storage.serialize(Storage.load()), Storage.loadTolerance())
-      ->Promise.then(ledger => {if currentAccount.current == userId {setPeople(_ => Storage.decodePeople(ledger.people)); setTolerance(_ => ledger.tolerance); setCloudReady(_ => true); setSyncError(_ => "")}; Promise.resolve(())})
+      loadOrMigrate(userId, Storage.serialize(Storage.load()), Storage.loadTolerance(), serializeScenarios(loadScenarios()))
+      ->Promise.then(ledger => {if currentAccount.current == userId {setPeople(_ => Storage.decodePeople(ledger.people)); setScenarios(_ => decodeScenarios(ledger.scenarios)); setScenariosReady(_ => ledger.scenariosReady); setTolerance(_ => ledger.tolerance); setCloudReady(_ => true); setSyncError(_ => "")}; Promise.resolve(())})
       ->Promise.catch(_error => {if currentAccount.current == userId {setSyncError(_ => "Could not load your account settings or cloud ledger. Retry to continue.")}; Promise.resolve(())})
       ->ignore
     } else {
       setSyncing(_ => true)
       saveCloud(userId, Storage.serialize(people))
-      ->Promise.then(result => {
-        if result == "saved" {setSyncing(_ => false); setSyncError(_ => "")}
-        if result->String.startsWith("error:") {setSyncing(_ => false); setSyncError(_ => "Cloud sync failed. Your changes remain on this screen; retry when online.")}
+      ->Promise.then(ledgerResult => (scenariosReady ? saveCloudScenarios(userId, serializeScenarios(scenarios)) : Promise.resolve("saved"))->Promise.then(scenarioResult => {
+        if currentAccount.current == userId {
+          setSyncing(_ => false)
+          setSyncError(_ => ledgerResult == "saved" && scenarioResult == "saved" ? "" : "Cloud sync failed. Your changes remain on this screen; retry when online.")
+        }
         Promise.resolve(())
-      })
+      }))
       ->ignore
     }
   }
@@ -302,9 +342,10 @@ let make = () => {
     ->Promise.then(raw => {
       if backupReadToken.current == requestToken && accountGeneration.current == accountToken && raw != "" {
         switch Storage.decodeBackup(raw) {
-        | Some((restoredPeople, restoredTolerance)) => {
+        | Some((restoredPeople, restoredTolerance, restoredScenarios)) => {
             setBackupPeople(_ => restoredPeople)
             setBackupTolerance(_ => restoredTolerance)
+            setBackupScenarios(_ => decodeScenarios(restoredScenarios))
             setBackupPreview(_ => true)
           }
         | None => setBackupError(_ => "That file is not a complete, valid Reciprocity Tracker backup.")
@@ -334,14 +375,14 @@ let make = () => {
         Promise.resolve(())
       } else {
         chooseTolerance(backupTolerance)
-        ->Promise.then(toleranceSaved => {
+        ->Promise.then(toleranceSaved => (scenariosReady ? commitScenarios(backupScenarios) : Promise.resolve(Array.length(backupScenarios) == 0))->Promise.then(scenariosSaved => {
           if currentAccount.current == accountId && accountGeneration.current == generation {
             setBackupSaving(_ => false)
-            if toleranceSaved {setBackupPreview(_ => false); setBackupMessage(_ => "Backup restored.")}
-            else {setBackupError(_ => "Could not save the restored CURE tolerance. Retry to finish restoring.")}
+            if toleranceSaved && scenariosSaved {setBackupPreview(_ => false); setBackupMessage(_ => "Backup restored.")}
+            else {setBackupError(_ => "Could not finish restoring all backup data. Retry when ready.")}
           }
           Promise.resolve(())
-        })
+        }))
       }
     })
     ->ignore
@@ -350,6 +391,7 @@ let make = () => {
   let openHome = () => {
     setShowDashboard(_ => true)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setShowInfo(_ => false)
     scrollTo(0, 0)
@@ -357,6 +399,7 @@ let make = () => {
   let showLedger = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setShowInfo(_ => false)
     scrollTo(0, 0)
@@ -368,23 +411,35 @@ let make = () => {
   let openInsights = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => true)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setShowInfo(_ => false)
+    scrollTo(0, 0)
+  }
+  let openThinkAhead = () => {
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setShowThinkAhead(_ => true)
+    setShowSettings(_ => false)
+    setShowInfo(_ => false)
+    setAddOpen(_ => false)
     scrollTo(0, 0)
   }
   let openSettings = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => true)
     setShowInfo(_ => false)
     setAddOpen(_ => false)
     scrollTo(0, 0)
   }
   let openInfo = () => {
-    setReturnView(_ => showSettings ? "settings" : showDashboard ? "home" : showInsights ? "insights" : "ledger")
+    setReturnView(_ => showSettings ? "settings" : showDashboard ? "home" : showInsights ? "insights" : showThinkAhead ? "think-ahead" : "ledger")
     setShowInfo(_ => true)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setCalendarTarget(_ => "")
     scrollTo(0, 0)
@@ -392,6 +447,7 @@ let make = () => {
   let leaveInfo = () => switch returnView {
   | "ledger" => showLedger()
   | "insights" => openInsights()
+  | "think-ahead" => openThinkAhead()
   | "settings" => openSettings()
   | _ => openHome()
   }
@@ -450,6 +506,7 @@ let make = () => {
       setShowInfo(_ => false)
       setShowDashboard(_ => false)
       setShowInsights(_ => false)
+      setShowThinkAhead(_ => false)
       setShowSettings(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
@@ -590,6 +647,7 @@ let make = () => {
     setShowInfo(_ => false)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setDeleteTargetId(_ => "")
     setEditingEntryIndex(_ => -1)
@@ -603,6 +661,7 @@ let make = () => {
     setShowInfo(_ => false)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
     setShowSettings(_ => false)
     setEditTargetId(_ => "")
     setEditingEntryIndex(_ => -1)
@@ -642,8 +701,9 @@ let make = () => {
         </div>
         <nav className="primary-nav" ariaLabel="Main navigation">
           <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("people")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
-          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
+          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
           <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
+          <button type_="button" title="Think Ahead" className={showThinkAhead ? "active" : ""} onClick={_ => openThinkAhead()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("think")}</span><span className="sidebar-nav-label">{React.string("Think Ahead")}</span></button>
         </nav>
 
         <button className={showSettings ? "sidebar-settings-toggle active" : "sidebar-settings-toggle"} title="Settings" type_="button" onClick={_ => openSettings()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
@@ -711,17 +771,17 @@ let make = () => {
           </section>
           <section className="settings-section" ariaLabel="Local backup">
             <h2>{React.string("Local backup")}</h2>
-            <p>{React.string("Download your people, interaction history, drafts, and CURE tolerance as a JSON file.")}</p>
+            <p>{React.string("Download your people, interaction history, drafts, CURE tolerance, and Think Ahead scenarios as a JSON file.")}</p>
             <div className="account-body">
-              <button type_="button" disabled={!cloudReady} onClick={_ => downloadBackup(Storage.serialize(people), tolerance)}>{React.string("Download backup")}</button>
+              <button type_="button" disabled={!cloudReady} onClick={_ => downloadBackup(Storage.serialize(people), tolerance, serializeScenarios(scenarios))}>{React.string("Download backup")}</button>
               <input id="backup-file" className="backup-file-input" type_="file" accept="application/json,.json" disabled={!cloudReady} onChange={readBackup} />
               <label className="backup-file-button" htmlFor="backup-file">{React.string("Choose backup file to restore")}</label>
             </div>
             {backupError != "" ? <p role="alert">{React.string(backupError)}</p> : React.null}
             {backupMessage != "" ? <p role="status">{React.string(backupMessage)}</p> : React.null}
             {backupPreview ? <div className="account-body">
-              <p role="status">{React.string("This will replace the current ledger with " ++ Int.toString(Array.length(backupPeople)) ++ " people and set CURE tolerance to " ++ Int.toString(backupTolerance) ++ ".")}</p>
-              <button type_="button" disabled={!cloudReady || backupSaving || syncing || toleranceBusy} onClick={_ => restoreBackup()}>{React.string(backupSaving ? "Restoring…" : "Replace current ledger")}</button>
+              <p role="status">{React.string("This will replace the current ledger with " ++ Int.toString(Array.length(backupPeople)) ++ " people, set CURE tolerance to " ++ Int.toString(backupTolerance) ++ ", and replace Think Ahead with " ++ Int.toString(Array.length(backupScenarios)) ++ " scenarios.")}</p>
+              <button type_="button" disabled={!cloudReady || backupSaving || syncing || toleranceBusy || (!scenariosReady && Array.length(backupScenarios) > 0)} onClick={_ => restoreBackup()}>{React.string(backupSaving ? "Restoring…" : "Replace current ledger")}</button>
               <button type_="button" onClick={_ => setBackupPreview(_ => false)}>{React.string("Cancel")}</button>
             </div> : React.null}
           </section>
@@ -731,10 +791,13 @@ let make = () => {
               {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
             </div>
           </section>
+          <button className="settings-info-link" type_="button" onClick={_ => openThinkAhead()}>{React.string("Think Ahead →")}</button>
           <button className="settings-info-link" type_="button" onClick={_ => openInfo()}>{React.string("How the method works →")}</button>
         </section>
       } else if showInfo {
         <div className="info-view"><button className="info-back" type_="button" onClick={_ => leaveInfo()}>{React.string(returnView == "settings" ? "Back to settings" : "Back to tracker")}</button><Info /></div>
+      } else if showThinkAhead {
+        {scenariosReady ? <ThinkAhead key={userId} scenarios people onChange={commitScenarios} /> : <section className="think-ahead"><h1>{React.string("Think Ahead")}</h1><p>{React.string("Cloud sync setup is pending. Your CURE ledger remains available. Your signed-out Think Ahead scenarios remain in this browser.")}</p></section>}
       } else if showInsights {
         <section className="insights-page">
           <h1>{React.string("Insights")}</h1>
@@ -939,9 +1002,10 @@ let make = () => {
     </main>
     <nav className="mobile-bottom-nav" ariaLabel="Mobile navigation">
       <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
-      <button type_="button" className={!showDashboard && !showInsights && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
-      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setShowSettings(_ => false); setShowInfo(_ => false); setShowDashboard(_ => false); setShowInsights(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
+      <button type_="button" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
+      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setShowSettings(_ => false); setShowInfo(_ => false); setShowDashboard(_ => false); setShowInsights(_ => false); setShowThinkAhead(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
       <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
+      <button type_="button" className={showThinkAhead ? "active" : ""} onClick={_ => openThinkAhead()}>{React.string("Think Ahead")}</button>
       <button type_="button" className={showSettings ? "active" : ""} onClick={_ => openSettings()}>{React.string("Settings")}</button>
     </nav>
   </div>

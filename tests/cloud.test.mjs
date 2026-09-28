@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {accountTolerance, consumeGuestLedger, enqueueWrite, guestSeed, initialLedger, persistPending, recoverPending} from '../src/Supabase.js'
+import {accountTolerance, consumeGuestLedger, consumeGuestScenarios, enqueueWrite, guestSeed, initialLedger, initialScenarios, missingScenariosColumn, persistPending, persistPendingScenarios, recoverPending} from '../src/Supabase.js'
 
 test('account tolerance takes precedence and an unset account can inherit the browser choice', () => {
   assert.equal(accountTolerance({user_metadata: {cure_tolerance: 1}}, 2), 1)
@@ -81,4 +81,34 @@ test('account switch waits for in-flight writes and never recovers another accou
   await Promise.all([firstWrite, accountReload])
   assert.deepEqual(order, ['old write finished', 'account-b load'])
   assert.ok(storage.getItem('good-faith.pending.account-a'))
+})
+
+test('scenario pending saves and guest migration use keys separate from the CURE ledger', () => {
+  const values = new Map([['good-faith.people.v2', '[]'], ['good-faith.think-ahead.v1', '[{"id":"scenario"}]']])
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+  persistPendingScenarios('account-a', '[{"id":"draft"}]', storage)
+  assert.equal(storage.getItem('good-faith.pending-scenarios.account-a'), '[{"id":"draft"}]')
+  assert.equal(storage.getItem('good-faith.people.v2'), '[]')
+  consumeGuestScenarios('account-a', false, storage)
+  assert.equal(storage.getItem('good-faith.think-ahead.v1'), null)
+  assert.ok([...values.keys()].some(key => key.startsWith('good-faith.archived-scenarios.account-a.')))
+  assert.equal(storage.getItem('good-faith.people.v2'), '[]')
+})
+
+test('guest scenarios import into an existing account only when cloud scenarios are empty', () => {
+  const guest = [{id: 'guest'}]
+  const cloud = [{id: 'cloud'}]
+  assert.deepEqual(initialScenarios([], guest), {scenarios: guest, imported: true})
+  assert.deepEqual(initialScenarios(cloud, guest), {scenarios: cloud, imported: false})
+  assert.deepEqual(initialScenarios([], []), {scenarios: [], imported: false})
+})
+
+test('a missing scenarios column can be handled without hiding unrelated cloud errors', () => {
+  assert.equal(missingScenariosColumn({code: '42703', message: 'column scenarios does not exist'}), true)
+  assert.equal(missingScenariosColumn({code: 'PGRST204', message: 'Could not find scenarios'}), true)
+  assert.equal(missingScenariosColumn({code: '42501', message: 'permission denied for scenarios'}), false)
 })
