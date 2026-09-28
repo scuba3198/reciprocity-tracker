@@ -226,7 +226,7 @@ html[data-theme="dark"] .own-move-options button.action-request.selected { backg
   .person-item { width: 100%; }
   .person-item .person-link, .person-item .person-link:hover, .person-item .person-link.active { width: 100%; }
   .main-content { padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
-  .mobile-bottom-nav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(6, 1fr); align-items: stretch; min-height: 65px; padding: 4px 6px calc(5px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--sidebar-bg); }
+  .mobile-bottom-nav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 3fr)) 52px repeat(3, minmax(0, 2fr)); align-items: stretch; min-height: 65px; padding: 4px 0 calc(5px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--sidebar-bg); }
   .mobile-bottom-nav button { min-width: 0; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; }
   .mobile-bottom-nav button.active { color: var(--green); }
   .mobile-bottom-nav button[aria-expanded="true"] { color: var(--green); }
