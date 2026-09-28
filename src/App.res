@@ -1,5 +1,6 @@
 type calendarDay = {date: string, label: string, accessible: string, disabled: bool}
 type calendarView = {title: string, days: array<calendarDay>, previous: string, next: string, previousDisabled: bool, nextDisabled: bool}
+type destination = Home | Ledger | Insights | Think | Settings | Info | Add | CreatePerson(string) | Person(string)
 @module("./Supabase.js") external auth: (string, string, string) => promise<string> = "auth"
 @module("./Supabase.js") external subscribeAuth: ((string, string, string) => unit) => (unit => unit) = "subscribe"
 type cloudLedger = {people: string, scenarios: string, scenariosReady: bool, tolerance: int}
@@ -85,6 +86,10 @@ let make = () => {
   let (showDashboard, setShowDashboard) = React.useState(_ => true)
   let (showInsights, setShowInsights) = React.useState(_ => false)
   let (showThinkAhead, setShowThinkAhead) = React.useState(_ => false)
+  let (thinkAheadDraft, setThinkAheadDraft) = React.useState(_ => None)
+  let (thinkAheadSession, setThinkAheadSession) = React.useState(_ => 0)
+  let (thinkAheadDirty, setThinkAheadDirty) = React.useState(_ => false)
+  let (pendingDestination, setPendingDestination) = React.useState(_ => None)
   let (showSettings, setShowSettings) = React.useState(_ => false)
   let (addOpen, setAddOpen) = React.useState(_ => false)
   let (sidebarCollapsed, setSidebarCollapsed) = React.useState(_ => false)
@@ -417,6 +422,21 @@ let make = () => {
     scrollTo(0, 0)
   }
   let openThinkAhead = () => {
+    setThinkAheadDraft(_ => None)
+    setThinkAheadSession(current => current + 1)
+    setThinkAheadDirty(_ => false)
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setShowThinkAhead(_ => true)
+    setShowSettings(_ => false)
+    setShowInfo(_ => false)
+    setAddOpen(_ => false)
+    scrollTo(0, 0)
+  }
+  let thinkThrough = (person: State.person, move: State.move) => {
+    setThinkAheadDraft(_ => Some(ThinkAhead.prefillScenario(person, move)))
+    setThinkAheadSession(current => current + 1)
+    setThinkAheadDirty(_ => false)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
     setShowThinkAhead(_ => true)
@@ -496,33 +516,63 @@ let make = () => {
     showLedger()
   }
 
-  let addPerson = event => {
-    ReactEvent.Form.preventDefault(event)
-    let name = newName->String.trim
-    if name != "" {
-      let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
-      commit(Array.concat(people, [person]))->ignore
-      setSelectedId(_ => person.id)
+  let createPerson = name => {
+    let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
+    commit(Array.concat(people, [person]))->ignore
+    setSelectedId(_ => person.id)
+    setShowInfo(_ => false)
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setShowThinkAhead(_ => false)
+    setShowSettings(_ => false)
+    setAddOpen(_ => false)
+    setNewName(_ => "")
+    setCurrentDraftId(_ => Storage.randomUUID())
+    setEditingEntryIndex(_ => -1)
+    setEntryEditError(_ => "")
+    setInteractionDate(_ => "")
+    setMyMove(_ => "")
+    setTheirMove(_ => "")
+    setNote(_ => "")
+    setMyActionDate(_ => "")
+    setTheirActionDate(_ => "")
+    setActionDatesOpen(_ => false)
+    setActionDateError(_ => "")
+    setCategory(_ => "")
+    setCategoryOpen(_ => false)
+  }
+  let goTo = destination => switch destination {
+  | Home => openHome()
+  | Ledger => openLedger()
+  | Insights => openInsights()
+  | Think => openThinkAhead()
+  | Settings => openSettings()
+  | Info => openInfo()
+  | Add => {
+      setAddOpen(_ => true)
+      setShowSettings(_ => false)
       setShowInfo(_ => false)
       setShowDashboard(_ => false)
       setShowInsights(_ => false)
       setShowThinkAhead(_ => false)
-      setShowSettings(_ => false)
-      setAddOpen(_ => false)
-      setNewName(_ => "")
-      setCurrentDraftId(_ => Storage.randomUUID())
-      setEditingEntryIndex(_ => -1)
-      setEntryEditError(_ => "")
-      setInteractionDate(_ => "")
-      setMyMove(_ => "")
-      setTheirMove(_ => "")
-      setNote(_ => "")
-      setMyActionDate(_ => "")
-      setTheirActionDate(_ => "")
-      setActionDatesOpen(_ => false)
-      setActionDateError(_ => "")
-      setCategory(_ => "")
-      setCategoryOpen(_ => false)
+      scrollTo(0, 0)
+    }
+  | CreatePerson(name) => createPerson(name)
+  | Person(id) => switch people->Array.find(person => person.id == id) { | Some(person) => openPerson(person) | None => () }
+  }
+  let navigate = destination => {
+    if showThinkAhead && thinkAheadDirty {
+      setPendingDestination(_ => Some(destination))
+    } else {
+      goTo(destination)
+    }
+  }
+
+  let addPerson = event => {
+    ReactEvent.Form.preventDefault(event)
+    let name = newName->String.trim
+    if name != "" {
+      navigate(CreatePerson(name))
     }
   }
 
@@ -683,7 +733,7 @@ let make = () => {
   <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
     <aside className="sidebar">
       <div className="brand">
-        <button type_="button" onClick={_ => openHome()}>{React.string("good faith")}</button>
+        <button type_="button" onClick={_ => navigate(Home)}>{React.string("good faith")}</button>
         <button className="sidebar-collapse" type_="button" ariaLabel={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} ariaExpanded={!sidebarCollapsed} onClick={_ => setSidebarCollapsed(previous => !previous)}>{React.string(sidebarCollapsed ? "›" : "‹")}</button>
       </div>
 
@@ -694,19 +744,19 @@ let make = () => {
           {searchQuery->String.trim != ""
             ? <div className="sidebar-search-results" ariaLabel="Search results">
                 {sortedPeople->Array.filter(person => person.name->String.toLowerCase->String.includes(searchQuery->String.trim->String.toLowerCase))->Array.map(person =>
-                  <button key={person.id} type_="button" onClick={_ => {setSearchQuery(_ => ""); openPerson(person)}}>{React.string(person.name)}</button>
+                  <button key={person.id} type_="button" onClick={_ => {setSearchQuery(_ => ""); navigate(Person(person.id))}}>{React.string(person.name)}</button>
                 )->React.array}
               </div>
             : React.null}
         </div>
         <nav className="primary-nav" ariaLabel="Main navigation">
-          <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("people")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
-          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
-          <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
-          <button type_="button" title="Think Ahead" className={showThinkAhead ? "active" : ""} onClick={_ => openThinkAhead()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("think")}</span><span className="sidebar-nav-label">{React.string("Think Ahead")}</span></button>
+          <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => navigate(Home)}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("people")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
+          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => navigate(Ledger)}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
+          <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => navigate(Insights)}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
+          <button type_="button" title="Think Ahead" className={showThinkAhead ? "active" : ""} onClick={_ => navigate(Think)}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("think")}</span><span className="sidebar-nav-label">{React.string("Think Ahead")}</span></button>
         </nav>
 
-        <button className={showSettings ? "sidebar-settings-toggle active" : "sidebar-settings-toggle"} title="Settings" type_="button" onClick={_ => openSettings()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
+        <button className={showSettings ? "sidebar-settings-toggle active" : "sidebar-settings-toggle"} title="Settings" type_="button" onClick={_ => navigate(Settings)}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
 
         <form className="add-form" onSubmit={addPerson}>
           <label htmlFor="new-person">{React.string("Quick add")}</label>
@@ -796,7 +846,7 @@ let make = () => {
       } else if showInfo {
         <div className="info-view"><button className="info-back" type_="button" onClick={_ => leaveInfo()}>{React.string(returnView == "settings" ? "Back to settings" : "Back to tracker")}</button><Info /></div>
       } else if showThinkAhead {
-        {scenariosReady ? <ThinkAhead key={userId} scenarios people onChange={commitScenarios} /> : <section className="think-ahead"><h1>{React.string("Think Ahead")}</h1><p>{React.string("Cloud sync setup is pending. Your CURE ledger remains available. Your signed-out Think Ahead scenarios remain in this browser.")}</p></section>}
+        {scenariosReady ? <ThinkAhead key={userId ++ ":" ++ Int.toString(thinkAheadSession)} scenarios people onChange={commitScenarios} initialDraft={thinkAheadDraft} onDirtyChange={dirty => setThinkAheadDirty(_ => dirty)} /> : <section className="think-ahead"><h1>{React.string("Think Ahead")}</h1><p>{React.string("Cloud sync setup is pending. Your CURE ledger remains available. Your signed-out Think Ahead scenarios remain in this browser.")}</p></section>}
       } else if showInsights {
         <section className="insights-page">
           <h1>{React.string("Insights")}</h1>
@@ -869,6 +919,7 @@ let make = () => {
                 <p>{React.string(decision.explanation)}</p>
               </div>
               <p className="decision-rule">{React.string(decision.rule)}</p>
+              <button type_="button" className="decision-think-ahead" onClick={_ => thinkThrough(person, decision.move)}>{React.string("Think this decision through")}</button>
             </section>
 
             <section className="record-section">
@@ -999,13 +1050,17 @@ let make = () => {
       }
       }}
     </main>
+    {switch pendingDestination {
+    | None => React.null
+    | Some(destination) => <ConfirmDialog title="Discard unsaved changes?" message="" keepLabel="Keep editing" confirmLabel="Discard changes" onKeep={() => setPendingDestination(_ => None)} onConfirm={() => {setPendingDestination(_ => None); setThinkAheadDirty(_ => false); goTo(destination)}} />
+    }}
     <nav className="mobile-bottom-nav" ariaLabel="Mobile navigation">
-      <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
-      <button type_="button" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
-      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setShowSettings(_ => false); setShowInfo(_ => false); setShowDashboard(_ => false); setShowInsights(_ => false); setShowThinkAhead(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
-      <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
-      <button type_="button" className={showThinkAhead ? "active" : ""} onClick={_ => openThinkAhead()}>{React.string("Think Ahead")}</button>
-      <button type_="button" className={showSettings ? "active" : ""} onClick={_ => openSettings()}>{React.string("Settings")}</button>
+      <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => navigate(Home)}>{React.string("Home")}</button>
+      <button type_="button" className={!showDashboard && !showInsights && !showThinkAhead && !showSettings && !showInfo ? "active" : ""} onClick={_ => navigate(Ledger)}>{React.string("Ledger")}</button>
+      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => navigate(Add)}>{React.string("+")}</button>
+      <button type_="button" className={showInsights ? "active" : ""} onClick={_ => navigate(Insights)}>{React.string("Insights")}</button>
+      <button type_="button" className={showThinkAhead ? "active" : ""} onClick={_ => navigate(Think)}>{React.string("Think Ahead")}</button>
+      <button type_="button" className={showSettings ? "active" : ""} onClick={_ => navigate(Settings)}>{React.string("Settings")}</button>
     </nav>
   </div>
 }

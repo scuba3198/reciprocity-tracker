@@ -18,8 +18,16 @@ let formatScore = value => fixed(value, 1)
 let now = () => Date.make()->Date.toISOString
 let blankChoice = label => {label, immediateUtility: 0, consequences: []}
 let blankScenario = () => {id: Storage.randomUUID(), title: "", personId: "", createdAt: now(), updatedAt: now(), choiceA: blankChoice("Option A"), choiceB: blankChoice("Option B")}
+let prefillScenario = (person: State.person, move: State.move): scenario => {
+  let draft = blankScenario()
+  let (a, b) = switch move {
+  | State.Cooperate => ("Follow CURE: Cooperate", "Withhold cooperation")
+  | State.Defect => ("Follow CURE: Withhold cooperation", "Cooperate")
+  }
+  {...draft, title: "What should I do with " ++ person.name ++ "?", personId: person.id, choiceA: blankChoice(a), choiceB: blankChoice(b)}
+}
 let likelihoods = [("Very unlikely", "Very unlikely (~10%)"), ("Unlikely", "Unlikely (~25%)"), ("Possible", "Possible (~50%)"), ("Likely", "Likely (~75%)"), ("Very likely", "Very likely (~90%)")]
-let credibilities = [("Probably not", "Probably not (~25%)"), ("Maybe", "Maybe (~60%)"), ("Probably yes", "Probably yes (~100%)")]
+let credibilities = [("Probably not", "Weak reason (~25% weight)"), ("Maybe", "Plausible reason (~60% weight)"), ("Probably yes", "Strong reason (~100% weight)")]
 let options = (values, selected, onSelect) => <select value={selected} onChange={event => onSelect(JsxEvent.Form.target(event)["value"])}>{values->Array.map(((value, label)) => <option key={value} value={value}>{React.string(label)}</option>)->React.array}</select>
 let utilityOptions = (selected, onSelect) => <select value={Int.toString(selected)} onChange={event => onSelect(JsxEvent.Form.target(event)["value"]->Int.fromString->Option.getOr(0))}>{[(-2, "Very bad"), (-1, "Bad"), (0, "Neutral"), (1, "Good"), (2, "Very good")]->Array.map(((value, label)) => <option key={Int.toString(value)} value={Int.toString(value)}>{React.string(label)}</option>)->React.array}</select>
 let inputValue = event => JsxEvent.Form.target(event)["value"]
@@ -36,14 +44,19 @@ let resultPanel = (title, choiceA, choiceB) => {
 }
 
 @react.component
-let make = (~scenarios: array<scenario>, ~people: array<State.person>, ~onChange: array<scenario> => promise<bool>) => {
-  let (draft, setDraft) = React.useState(_ => blankScenario())
-  let (editing, setEditing) = React.useState(_ => false)
+let make = (~scenarios: array<scenario>, ~people: array<State.person>, ~onChange: array<scenario> => promise<bool>, ~initialDraft: option<scenario>, ~onDirtyChange: bool => unit) => {
+  let initial = initialDraft->Option.getOr(blankScenario())
+  let (draft, setDraft) = React.useState(_ => initial)
+  let (baseline, setBaseline) = React.useState(_ => initial)
+  let (editing, setEditing) = React.useState(_ => initialDraft->Option.isSome)
   let (step, setStep) = React.useState(_ => 0)
-  let (selectedId, setSelectedId) = React.useState(_ => "")
+  let (selectedId, setSelectedId) = React.useState(_ => initial.id)
   let (saveError, setSaveError) = React.useState(_ => "")
+  let (discardConfirm, setDiscardConfirm) = React.useState(_ => false)
+  let (deleteConfirm, setDeleteConfirm) = React.useState(_ => "")
+  React.useEffect2(() => {onDirtyChange(draft != baseline); None}, (draft, baseline))
   let active = scenarios->Array.find(item => item.id == selectedId)
-  let start = (item, isNew) => {setDraft(_ => item); setEditing(_ => true); setStep(_ => 0); setSaveError(_ => ""); if isNew {setSelectedId(_ => item.id)}}
+  let start = (item, isNew) => {setDraft(_ => item); setBaseline(_ => item); setEditing(_ => true); setStep(_ => 0); setSaveError(_ => ""); setDiscardConfirm(_ => false); if isNew {setSelectedId(_ => item.id)}}
   let persist = next => onChange(next)->Promise.then(saved => {
     setSaveError(_ => saved ? "" : "Could not save this scenario. Your draft is still here; try again.")
     Promise.resolve(saved)
@@ -52,7 +65,7 @@ let make = (~scenarios: array<scenario>, ~people: array<State.person>, ~onChange
     if canSave(draft) {
       let updated = {...draft, title: String.trim(draft.title), updatedAt: now(), choiceA: {...draft.choiceA, label: String.trim(draft.choiceA.label), consequences: draft.choiceA.consequences->Array.map(item => {...item, description: String.trim(item.description)})}, choiceB: {...draft.choiceB, label: String.trim(draft.choiceB.label), consequences: draft.choiceB.consequences->Array.map(item => {...item, description: String.trim(item.description)})}}
       persist(scenarios->Array.filter(item => item.id != updated.id)->Array.concat([updated]))
-      ->Promise.then(saved => {if saved {setSelectedId(_ => updated.id); setEditing(_ => false)}; Promise.resolve(())})
+      ->Promise.then(saved => {if saved {setSelectedId(_ => updated.id); setBaseline(_ => updated); setDraft(_ => updated); setEditing(_ => false)}; Promise.resolve(())})
       ->ignore
     }
   }
@@ -67,13 +80,12 @@ let make = (~scenarios: array<scenario>, ~people: array<State.person>, ~onChange
         <label>{React.string("Outcome")}<input value={item.description} maxLength=120 onChange={event => update({...choice, consequences: replaceAt(consequences, index, {...item, description: inputValue(event)})})} /></label>
         <div className="ta-assumptions"><label>{React.string("Likelihood")}{options(likelihoods, item.likelihood, value => update({...choice, consequences: replaceAt(consequences, index, {...item, likelihood: value})}))}</label><label>{React.string("How much would it matter?")}{utilityOptions(item.utility, value => update({...choice, consequences: replaceAt(consequences, index, {...item, utility: value})}))}</label></div>
         <label className="ta-check"><input type_="checkbox" checked={item.dependsOnPerson} onChange={event => update({...choice, consequences: replaceAt(consequences, index, {...item, dependsOnPerson: JsxEvent.Form.target(event)["checked"]})})} />{React.string(switch people->Array.find(person => person.id == draft.personId) { | Some(person) => "Does this outcome depend on what " ++ person.name ++ " does?" | None => "Does this outcome depend on another person's future choice?" })}</label>
-        {item.dependsOnPerson ? <label>{React.string("If the moment actually came, would they have a real reason to do this?")}{options(credibilities, item.credibility, value => update({...choice, consequences: replaceAt(consequences, index, {...item, credibility: value})}))}</label> : React.null}
+        {item.dependsOnPerson ? <label>{React.string("If the moment actually came, how strong would their reason be to do this?")}{options(credibilities, item.credibility, value => update({...choice, consequences: replaceAt(consequences, index, {...item, credibility: value})}))}</label> : React.null}
         <button type_="button" className="ta-text-button" onClick={_ => update({...choice, consequences: consequences->Array.filterWithIndex((_, i) => i != index)})}>{React.string("Remove outcome")}</button>
       </fieldset>)->React.array}
       <button type_="button" className="ta-secondary" onClick={_ => {let item = {id: Storage.randomUUID(), description: "", likelihood: "Possible", utility: 0, dependsOnPerson: false, credibility: "Probably yes"}; update({...choice, consequences: Array.concat(consequences, [item])})}}>{React.string("+ Add possible outcome")}</button>
     </section>
   }
-  let (_, _, top) = result(draft.choiceA, draft.choiceB)
   <section className="think-ahead">
     <header className="ta-header"><p className="ta-eyebrow">{React.string("Think Ahead")}</p><h1>{React.string("Make room for what might happen.")}</h1><p>{React.string("Compare the immediate trade-offs and possible outcomes. Scores organize your assumptions; they do not decide for you.")}</p></header>
     {saveError != "" ? <p className="ta-warning" role="alert">{React.string(saveError)}</p> : React.null}
@@ -83,13 +95,18 @@ let make = (~scenarios: array<scenario>, ~people: array<State.person>, ~onChange
         <button type_="button" className="ta-open" onClick={_ => {setSelectedId(_ => item.id); setDraft(_ => item); setEditing(_ => false)}}><strong>{React.string(item.title == "" ? "Untitled scenario" : item.title)}</strong><span>{React.string(item.choiceA.label ++ " vs. " ++ item.choiceB.label)}</span></button>
         <button type_="button" ariaLabel={"Edit " ++ item.title} onClick={_ => start(item, false)}>{React.string("Edit")}</button>
         <button type_="button" ariaLabel={"Duplicate " ++ item.title} onClick={_ => {let copy = {...item, id: Storage.randomUUID(), title: item.title ++ " (copy)", createdAt: now(), updatedAt: now()}; persist(Array.concat(scenarios, [copy]))->ignore}}>{React.string("Duplicate")}</button>
-        <button type_="button" ariaLabel={"Delete " ++ item.title} onClick={_ => {persist(scenarios->Array.filter(value => value.id != item.id))->Promise.then(saved => {if saved && selectedId == item.id {setSelectedId(_ => "")}; Promise.resolve(())})->ignore}}>{React.string("Delete")}</button>
+        <button type_="button" ariaLabel={"Delete " ++ item.title} onClick={_ => setDeleteConfirm(_ => item.id)}>{React.string("Delete")}</button>
       </li>)->React.array}</ul>}
       {switch active { | None => React.null | Some(item) => resultPanel(item.title, item.choiceA, item.choiceB)}}
     </> : <>
       <div className="ta-stepper" ariaLabel="Scenario steps">{["Choices", "Possible outcomes", "Compare" ]->Array.mapWithIndex((label, index) => step == index ? <button key={Int.toString(index)} type_="button" className="active" ariaCurrent=#step onClick={_ => setStep(_ => index)}>{React.string(Int.toString(index + 1) ++ ". " ++ label)}</button> : <button key={Int.toString(index)} type_="button" onClick={_ => setStep(_ => index)}>{React.string(Int.toString(index + 1) ++ ". " ++ label)}</button>)->React.array}</div>
-      {step == 0 ? <section className="ta-panel"><label>{React.string("What decision are you considering?")}<input autoFocus=true value={draft.title} maxLength=100 placeholder="e.g. Take the new role" onChange={event => setDraft(current => {...current, title: inputValue(event)})} /></label><label>{React.string("Related person (optional)")}<select value={draft.personId} onChange={event => setDraft(current => {...current, personId: inputValue(event)})}><option value="">{React.string("No person selected")}</option>{people->Array.map(person => <option key={person.id} value={person.id}>{React.string(person.name)}</option>)->React.array}</select></label><div className="ta-choice-grid">{[true, false]->Array.map(isA => {let choice = isA ? draft.choiceA : draft.choiceB; <div key={isA ? "a" : "b"} className="ta-inline-choice"><label>{React.string(isA ? "Option A name" : "Option B name")}<input value={choice.label} maxLength=70 placeholder={isA ? "e.g. Stay in current role" : "e.g. Take the new role"} onChange={event => setDraft(current => updateChoice(current, isA, {...choice, label: inputValue(event)}))} /></label><label>{React.string("Immediate effect")}<span className="ta-field-help">{React.string("How good or bad is this right away?")}</span>{utilityOptions(choice.immediateUtility, value => setDraft(current => updateChoice(current, isA, {...choice, immediateUtility: value})))}</label></div>})->React.array}</div></section> : step == 1 ? <><div className="ta-choice-grid">{choiceCard(true, draft.choiceA)}{choiceCard(false, draft.choiceB)}</div><div className="ta-live-strip" ariaLive=#polite><strong>{React.string("Live scores")}</strong><span>{React.string(draft.choiceA.label ++ " " ++ formatScore(score(draft.choiceA)) ++ " · " ++ draft.choiceB.label ++ " " ++ formatScore(score(draft.choiceB)) ++ (closeCall(draft.choiceA, draft.choiceB) ? " · Close call" : " · Favors " ++ top))}</span></div></> : <><p className="ta-decision-note">{React.string("Scores organize your assumptions; they do not decide for you.")}</p>{resultPanel("Live comparison", draft.choiceA, draft.choiceB)}</>}
-      <div className="ta-actions"><button type_="button" className="ta-secondary" onClick={_ => {setEditing(_ => false); setStep(_ => 0)}}>{React.string("Cancel")}</button>{step > 0 ? <button type_="button" className="ta-secondary" onClick={_ => setStep(current => current - 1)}>{React.string("Back")}</button> : React.null}{step < 2 ? <button type_="button" className="ta-primary" onClick={_ => setStep(current => current + 1)}>{React.string("Continue")}</button> : <button type_="button" className="ta-primary" disabled={!canSave(draft)} onClick={_ => commit()}>{React.string("Save scenario")}</button>}</div>
+      {step == 0 ? <section className="ta-panel"><label>{React.string("What decision are you considering?")}<input autoFocus=true value={draft.title} maxLength=100 placeholder="e.g. Take the new role" onChange={event => setDraft(current => {...current, title: inputValue(event)})} /></label><label>{React.string("Related person (optional)")}<select value={draft.personId} onChange={event => setDraft(current => {...current, personId: inputValue(event)})}><option value="">{React.string("No person selected")}</option>{people->Array.map(person => <option key={person.id} value={person.id}>{React.string(person.name)}</option>)->React.array}</select></label><div className="ta-choice-grid">{[true, false]->Array.map(isA => {let choice = isA ? draft.choiceA : draft.choiceB; <div key={isA ? "a" : "b"} className="ta-inline-choice"><label>{React.string(isA ? "Option A name" : "Option B name")}<input value={choice.label} maxLength=70 placeholder={isA ? "e.g. Stay in current role" : "e.g. Take the new role"} onChange={event => setDraft(current => updateChoice(current, isA, {...choice, label: inputValue(event)}))} /></label><label>{React.string("Immediate effect")}<span className="ta-field-help">{React.string("How good or bad is this right away?")}</span>{utilityOptions(choice.immediateUtility, value => setDraft(current => updateChoice(current, isA, {...choice, immediateUtility: value})))}</label></div>})->React.array}</div></section> : step == 1 ? <div className="ta-choice-grid">{choiceCard(true, draft.choiceA)}{choiceCard(false, draft.choiceB)}</div> : <><p className="ta-decision-note">{React.string("Scores organize your assumptions; they do not decide for you.")}</p>{resultPanel("Live comparison", draft.choiceA, draft.choiceB)}</>}
+      <div className="ta-actions"><button type_="button" className="ta-secondary" onClick={_ => {if draft == baseline {setEditing(_ => false); setStep(_ => 0)} else {setDiscardConfirm(_ => true)}}}>{React.string("Cancel")}</button>{step > 0 ? <button type_="button" className="ta-secondary" onClick={_ => setStep(current => current - 1)}>{React.string("Back")}</button> : React.null}{step < 2 ? <button type_="button" className="ta-primary" onClick={_ => setStep(current => current + 1)}>{React.string("Continue")}</button> : <button type_="button" className="ta-primary" disabled={!canSave(draft)} onClick={_ => commit()}>{React.string("Save scenario")}</button>}</div>
     </>}
+    {discardConfirm ? <ConfirmDialog title="Discard unsaved changes?" message="" keepLabel="Keep editing" confirmLabel="Discard changes" onKeep={() => setDiscardConfirm(_ => false)} onConfirm={() => {setDraft(_ => baseline); setEditing(_ => false); setDiscardConfirm(_ => false); setStep(_ => 0)}} /> : React.null}
+    {switch scenarios->Array.find(item => item.id == deleteConfirm) {
+    | Some(item) => <ConfirmDialog title={"Delete “" ++ item.title ++ "”?"} message="This scenario will be removed permanently." keepLabel="Keep scenario" confirmLabel="Delete" onKeep={() => setDeleteConfirm(_ => "")} onConfirm={() => {persist(scenarios->Array.filter(value => value.id != item.id))->Promise.then(saved => {if saved {setDeleteConfirm(_ => ""); if selectedId == item.id {setSelectedId(_ => "")}}; Promise.resolve(())})->ignore}} />
+    | None => React.null
+    }}
   </section>
 }

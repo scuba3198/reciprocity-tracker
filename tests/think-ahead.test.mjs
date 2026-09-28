@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {readFileSync} from 'node:fs'
+import React from 'react'
+import {renderToStaticMarkup} from 'react-dom/server'
 import {decode, load, save} from '../src/ThinkAheadStorage.js'
 import {decode as decodeBackup} from '../src/LocalBackup.js'
 import {history, next} from '../src/State.res.mjs'
-import {canSave, closeCall, credibilityValue, credibilities, likelihoodValue, likelihoods, result, score} from '../src/ThinkAhead.res.mjs'
+import {canSave, closeCall, credibilityValue, credibilities, likelihoodValue, likelihoods, make, prefillScenario, result, score} from '../src/ThinkAhead.res.mjs'
 
 const consequence = (utility, likelihood = 'Likely', credibility = 'Probably yes') => ({
   id: crypto.randomUUID(), description: 'A later outcome', likelihood, utility,
@@ -96,6 +98,11 @@ test('display percentages match the unchanged likelihood and credibility weights
   for (const [value, label] of credibilities) {
     assert.match(label, new RegExp(`~${credibilityValue(value) * 100}%`))
   }
+  assert.deepEqual(credibilities, [
+    ['Probably not', 'Weak reason (~25% weight)'],
+    ['Maybe', 'Plausible reason (~60% weight)'],
+    ['Probably yes', 'Strong reason (~100% weight)'],
+  ])
 })
 
 test('saving requires nonblank names and descriptions, but no future outcomes', () => {
@@ -112,10 +119,67 @@ test('saving requires nonblank names and descriptions, but no future outcomes', 
 test('choice names are edited in Choices and reused as Possible outcomes headings', () => {
   const source = readFileSync(new URL('../src/ThinkAhead.res', import.meta.url), 'utf8')
   const choices = source.split('{step == 0 ?')[1].split(': step == 1 ?')[0]
-  const outcomes = source.split('let choiceCard =')[1].split('let (_, _, top)')[0]
+  const outcomes = source.split('let choiceCard =')[1].split('<section className="think-ahead">')[0]
   assert.match(choices, /"Option A name" : "Option B name"/)
   assert.match(choices, /<input value=\{choice\.label\}/)
   assert.match(outcomes, /<h3>\{React\.string\(choice\.label\)\}<\/h3>/)
   assert.doesNotMatch(outcomes, /<input value=\{choice\.label\}/)
   assert.doesNotMatch(outcomes, /Immediate effect/)
+})
+
+test('CURE handoff prefills only decision context and never saves on opening', () => {
+  const person = {id: 'person-1', name: 'Mira', entries: [], drafts: []}
+  for (const [move, a, b] of [
+    ['Cooperate', 'Follow CURE: Cooperate', 'Withhold cooperation'],
+    ['Defect', 'Follow CURE: Withhold cooperation', 'Cooperate'],
+  ]) {
+    const draft = prefillScenario(person, move)
+    assert.equal(draft.title, 'What should I do with Mira?')
+    assert.equal(draft.personId, person.id)
+    assert.equal(draft.choiceA.label, a)
+    assert.equal(draft.choiceB.label, b)
+    for (const choice of [draft.choiceA, draft.choiceB]) {
+      assert.equal(choice.immediateUtility, 0)
+      assert.deepEqual(choice.consequences, [])
+    }
+    let writes = 0
+    const html = renderToStaticMarkup(React.createElement(make, {
+      scenarios: [], people: [person], initialDraft: draft,
+      onChange: async () => {writes++; return true}, onDirtyChange: () => {},
+    }))
+    assert.match(html, /What decision are you considering\?/)
+    assert.match(html, /<option value="person-1" selected=""/)
+    assert.match(html, /1\. Choices/)
+    assert.doesNotMatch(html, /Your scenarios/)
+    assert.equal(writes, 0)
+  }
+})
+
+test('standalone Think Ahead opens the scenario list', () => {
+  const html = renderToStaticMarkup(React.createElement(make, {
+    scenarios: [], people: [], initialDraft: undefined,
+    onChange: async () => true, onDirtyChange: () => {},
+  }))
+  assert.match(html, /Your scenarios/)
+  assert.match(html, /\+ New scenario/)
+  assert.doesNotMatch(html, /What decision are you considering\?/)
+})
+
+test('comparative results are rendered only in Compare, and both confirmations exist', () => {
+  const thinkAhead = readFileSync(new URL('../src/ThinkAhead.res', import.meta.url), 'utf8')
+  const app = readFileSync(new URL('../src/App.res', import.meta.url), 'utf8')
+  const stepTwo = thinkAhead.split(': step == 1 ?')[1].split(': <>')[0]
+  assert.doesNotMatch(stepTwo, /score\(|resultPanel|Favors|ta-live-strip|Current estimate favors/)
+  assert.match(thinkAhead, /resultPanel\("Live comparison"/)
+  assert.match(thinkAhead, /Discard unsaved changes\?/)
+  assert.match(thinkAhead, /Keep editing/)
+  assert.match(thinkAhead, /Keep scenario/)
+  assert.match(app, /showThinkAhead && thinkAheadDirty/)
+  assert.match(app, /Discard unsaved changes\?/)
+  assert.match(app, /navigate\(Ledger\)/)
+  assert.match(app, /navigate\(Home\)/)
+  assert.match(app, /navigate\(Insights\)/)
+  assert.match(app, /navigate\(Settings\)/)
+  assert.match(app, /let addPerson = event =>[\s\S]*?navigate\(CreatePerson\(name\)\)/)
+  assert.match(app, /\| CreatePerson\(name\) => createPerson\(name\)/)
 })
