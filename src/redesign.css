@@ -225,12 +225,12 @@ html[data-theme="dark"] .own-move-options button.action-request.selected { backg
   .sidebar-main { display: none; }
   .person-item { width: 100%; }
   .person-item .person-link, .person-item .person-link:hover, .person-item .person-link.active { width: 100%; }
-  .main-content { padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
-  .mobile-bottom-nav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 3fr)) 52px repeat(3, minmax(0, 2fr)); align-items: stretch; min-height: 65px; padding: 4px 0 calc(5px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--sidebar-bg); }
+  .main-content { padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .mobile-bottom-nav { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; min-height: 65px; padding: 4px 0 calc(5px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--sidebar-bg); }
   .mobile-bottom-nav button { min-width: 0; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; }
   .mobile-bottom-nav button.active { color: var(--green); }
   .mobile-bottom-nav button[aria-expanded="true"] { color: var(--green); }
-  .mobile-bottom-nav .mobile-add { justify-self: center; align-self: center; width: 47px; height: 47px; border-radius: 50%; background: var(--mint); color: var(--mint-ink); font-size: 28px; font-weight: 400; line-height: 1; }
+  .mobile-bottom-nav .mobile-add { position: absolute; z-index: 1; top: -24px; left: 50%; transform: translateX(-50%); width: 47px; height: 47px; border-radius: 50%; background: var(--mint); color: var(--mint-ink); font-size: 28px; font-weight: 400; line-height: 1; }
   .detail { padding: 30px 20px 60px; }
   .detail-heading { margin-bottom: 25px; }
   .decision-panel, .decision-panel.defect, html[data-theme="dark"] .decision-panel, html[data-theme="dark"] .decision-panel.defect { padding: 24px 22px; }
