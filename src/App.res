@@ -76,10 +76,9 @@ let make = () => {
   let (returnView, setReturnView) = React.useState(_ => "home")
   let (showDashboard, setShowDashboard) = React.useState(_ => true)
   let (showInsights, setShowInsights) = React.useState(_ => false)
+  let (showSettings, setShowSettings) = React.useState(_ => false)
   let (addOpen, setAddOpen) = React.useState(_ => false)
-  let (mobileMenuOpen, setMobileMenuOpen) = React.useState(_ => false)
   let (sidebarCollapsed, setSidebarCollapsed) = React.useState(_ => false)
-  let (sidebarSettingsOpen, setSidebarSettingsOpen) = React.useState(_ => false)
   let (searchQuery, setSearchQuery) = React.useState(_ => "")
   let (theme, setTheme) = React.useState(loadTheme)
   let (tolerance, setTolerance) = React.useState(Storage.loadTolerance)
@@ -260,15 +259,15 @@ let make = () => {
   let openHome = () => {
     setShowDashboard(_ => true)
     setShowInsights(_ => false)
+    setShowSettings(_ => false)
     setShowInfo(_ => false)
-    setMobileMenuOpen(_ => false)
     scrollTo(0, 0)
   }
   let showLedger = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
+    setShowSettings(_ => false)
     setShowInfo(_ => false)
-    setMobileMenuOpen(_ => false)
     scrollTo(0, 0)
   }
   let openLedger = () => {
@@ -278,22 +277,31 @@ let make = () => {
   let openInsights = () => {
     setShowDashboard(_ => false)
     setShowInsights(_ => true)
+    setShowSettings(_ => false)
     setShowInfo(_ => false)
-    setMobileMenuOpen(_ => false)
+    scrollTo(0, 0)
+  }
+  let openSettings = () => {
+    setShowDashboard(_ => false)
+    setShowInsights(_ => false)
+    setShowSettings(_ => true)
+    setShowInfo(_ => false)
+    setAddOpen(_ => false)
     scrollTo(0, 0)
   }
   let openInfo = () => {
-    setReturnView(_ => showDashboard ? "home" : showInsights ? "insights" : "ledger")
+    setReturnView(_ => showSettings ? "settings" : showDashboard ? "home" : showInsights ? "insights" : "ledger")
     setShowInfo(_ => true)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
-    setMobileMenuOpen(_ => false)
+    setShowSettings(_ => false)
     setCalendarTarget(_ => "")
     scrollTo(0, 0)
   }
   let leaveInfo = () => switch returnView {
   | "ledger" => showLedger()
   | "insights" => openInsights()
+  | "settings" => openSettings()
   | _ => openHome()
   }
   let startNewDraft = () => {
@@ -351,6 +359,7 @@ let make = () => {
       setShowInfo(_ => false)
       setShowDashboard(_ => false)
       setShowInsights(_ => false)
+      setShowSettings(_ => false)
       setAddOpen(_ => false)
       setNewName(_ => "")
       setCurrentDraftId(_ => Storage.randomUUID())
@@ -490,7 +499,7 @@ let make = () => {
     setShowInfo(_ => false)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
-    setMobileMenuOpen(_ => false)
+    setShowSettings(_ => false)
     setDeleteTargetId(_ => "")
     setEditingEntryIndex(_ => -1)
     setEditName(_ => person.name)
@@ -503,7 +512,7 @@ let make = () => {
     setShowInfo(_ => false)
     setShowDashboard(_ => false)
     setShowInsights(_ => false)
-    setMobileMenuOpen(_ => false)
+    setShowSettings(_ => false)
     setEditTargetId(_ => "")
     setEditingEntryIndex(_ => -1)
     setDeleteTargetId(_ => person.id)
@@ -522,14 +531,13 @@ let make = () => {
   let sortedPeople = people->Array.map(person => person)->sortPeople((a, b) => String.compare(a.name->String.toLowerCase, b.name->String.toLowerCase))
 
   <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
-    <aside className={mobileMenuOpen ? "sidebar extras-open" : "sidebar"}>
+    <aside className="sidebar">
       <div className="brand">
         <button type_="button" onClick={_ => openHome()}>{React.string("good faith")}</button>
         <button className="sidebar-collapse" type_="button" ariaLabel={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} ariaExpanded={!sidebarCollapsed} onClick={_ => setSidebarCollapsed(previous => !previous)}>{React.string(sidebarCollapsed ? "›" : "‹")}</button>
       </div>
 
-      <div id="mobile-settings-panel" className="sidebar-main">
-        <div className="mobile-settings-header"><h2>{React.string("Settings")}</h2><button type_="button" onClick={_ => setMobileMenuOpen(_ => false)}>{React.string("Close")}</button></div>
+      <div className="sidebar-main">
         <div className="sidebar-search">
           <label htmlFor="person-search">{React.string("Search people")}</label>
           <div className="sidebar-search-field"><span ariaHidden=true>{React.string("⌕")}</span><input id="person-search" type_="search" placeholder="Search people..." value={searchQuery} onChange={event => setSearchQuery(_ => JsxEvent.Form.target(event)["value"])} /></div>
@@ -543,38 +551,11 @@ let make = () => {
         </div>
         <nav className="primary-nav" ariaLabel="Main navigation">
           <button type_="button" title="People" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("people")}</span><span className="sidebar-nav-label">{React.string("People")}</span></button>
-          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
+          <button type_="button" title="Ledger" className={!showDashboard && !showInsights && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("ledger")}</span><span className="sidebar-nav-label">{React.string("Ledger")}</span></button>
           <button type_="button" title="Insights" className={showInsights ? "active" : ""} onClick={_ => openInsights()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("insights")}</span><span className="sidebar-nav-label">{React.string("Insights")}</span></button>
         </nav>
 
-        <section className="account-tools" ariaLabel="Cloud account">
-          <h2>{React.string("Cloud sync")}</h2>
-          {passwordRecovery
-            ? <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("update-password")}}>
-                <label htmlFor="new-account-password">{React.string("New password (at least 8 characters)")}</label>
-                <input id="new-account-password" type_="password" autoComplete="new-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
-                <button type_="submit" disabled={authBusy}>{React.string(authBusy ? "Updating…" : "Update password")}</button>
-              </form>
-            : userId != ""
-            ? <div className="account-body">
-                <p>{React.string(email)}</p>
-                <p>{React.string(syncing ? "Saving changes…" : cloudReady ? "Ledger synced to your account." : "Loading your ledger…")}</p>
-                <button type_="button" onClick={_ => runAuth("signout")} disabled={authBusy}>{React.string("Sign out")}</button>
-              </div>
-            : <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("signin")}}>
-                <label htmlFor="account-email">{React.string("Email")}</label>
-                <input id="account-email" type_="email" autoComplete="email" required=true value={email} onChange={event => setEmail(_ => JsxEvent.Form.target(event)["value"])} />
-                <label htmlFor="account-password">{React.string("Password (at least 8 characters)")}</label>
-                <input id="account-password" type_="password" autoComplete="current-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
-                <button type_="submit" disabled={authBusy}>{React.string("Sign in")}</button>
-                <button type_="button" disabled={authBusy} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
-                <button type_="button" disabled={authBusy} onClick={_ => runAuth("reset")}>{React.string("Forgot password?")}</button>
-              </form>}
-          {authError != "" ? <p role="alert" className="account-error">{React.string(authError)}</p> : React.null}
-          {authMessage != "" ? <p role="status" className="account-message">{React.string(authMessage)}</p> : React.null}
-          {syncError != "" ? <div className="account-error" role="alert"><p>{React.string(syncError)}</p><button type_="button" disabled={userId == "" || syncing} onClick={_ => retrySync()}>{React.string(cloudReady ? "Retry sync" : "Retry loading")}</button></div> : React.null}
-        </section>
-        <button className="sidebar-settings-toggle" title="Settings" type_="button" ariaExpanded={sidebarSettingsOpen} onClick={_ => {setSidebarCollapsed(_ => false); setSidebarSettingsOpen(previous => !previous)}}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
+        <button className={showSettings ? "sidebar-settings-toggle active" : "sidebar-settings-toggle"} title="Settings" type_="button" onClick={_ => openSettings()}><span className="sidebar-nav-icon" ariaHidden=true>{navIcon("settings")}</span><span className="sidebar-nav-label">{React.string("Settings")}</span></button>
 
         <form className="add-form" onSubmit={addPerson}>
           <label htmlFor="new-person">{React.string("Quick add")}</label>
@@ -584,31 +565,12 @@ let make = () => {
           </div>
         </form>
 
-        <button className="mobile-menu-toggle" type_="button" ariaExpanded={mobileMenuOpen} onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings & info")}</button>
-
-        <div className={sidebarSettingsOpen ? "sidebar-settings-panel open" : "sidebar-settings-panel"}>
-        <button className={showInfo ? "info-nav active" : "info-nav"} type_="button" onClick={_ => showInfo ? leaveInfo() : openInfo()}>{React.string(showInfo ? "Back to tracker" : "How the method works")}</button>
-        <section className="theme-tools" ariaLabel="CURE tolerance">
-          <p>{React.string("CURE tolerance")}</p>
-          <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
-            {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)}>{React.string(Int.toString(choice))}</button>)->React.array}
-          </div>
-          {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
-          {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
-        </section>
-        <section className="theme-tools" ariaLabel="Appearance">
-          <p>{React.string("Appearance")}</p>
-          <div className="theme-options" role="group" ariaLabel="Color theme">
-            {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
-          </div>
-        </section>
-        </div>
         <div className="sidebar-quote"><p>{React.string("Patterns are worth noticing. People are more than patterns.")}</p></div>
       </div>
       <p className="sidebar-foot">{React.string("Your ledger is stored on this device until you sign in.")}</p>
     </aside>
 
-    <main className={authReady && cloudReady ? "main-content" : "main-content cloud-locked"}>
+    <main className={(authReady && cloudReady) || showSettings ? "main-content" : "main-content cloud-locked"}>
       {!authReady || !cloudReady ? <section className="cloud-loading" role="status">{React.string(syncError != "" ? "Cloud ledger unavailable. Use Retry loading in Cloud sync." : "Loading your ledger…")}</section> : React.null}
       {addOpen
         ? <form className="quick-add-panel" onSubmit={addPerson} ariaLabel="Add a person">
@@ -618,8 +580,54 @@ let make = () => {
               <button type_="button" onClick={_ => setAddOpen(_ => false)}>{React.string("Cancel")}</button></div>
           </form>
         : React.null}
-      {if showInfo {
-        <div className="info-view"><button className="info-back" type_="button" onClick={_ => leaveInfo()}>{React.string("Back to tracker")}</button><Info /></div>
+      {if showSettings && !showInfo {
+        <section className="settings-page">
+          <header className="settings-header"><h1>{React.string("Settings")}</h1><p>{React.string("Manage your account, CURE, and appearance.")}</p></header>
+          <section className="settings-section account-tools" ariaLabel="Cloud account">
+            <h2>{React.string("Cloud sync")}</h2>
+            {passwordRecovery
+              ? <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("update-password")}}>
+                  <label htmlFor="new-account-password">{React.string("New password (at least 8 characters)")}</label>
+                  <input id="new-account-password" type_="password" autoComplete="new-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
+                  <button type_="submit" disabled={authBusy}>{React.string(authBusy ? "Updating…" : "Update password")}</button>
+                </form>
+              : userId != ""
+              ? <div className="account-body">
+                  <p>{React.string(email)}</p>
+                  <p>{React.string(syncing ? "Saving changes…" : cloudReady ? "Ledger synced to your account." : "Loading your ledger…")}</p>
+                  <button type_="button" onClick={_ => runAuth("signout")} disabled={authBusy}>{React.string("Sign out")}</button>
+                </div>
+              : <form className="account-body" onSubmit={event => {ReactEvent.Form.preventDefault(event); runAuth("signin")}}>
+                  <label htmlFor="account-email">{React.string("Email")}</label>
+                  <input id="account-email" type_="email" autoComplete="email" required=true value={email} onChange={event => setEmail(_ => JsxEvent.Form.target(event)["value"])} />
+                  <label htmlFor="account-password">{React.string("Password (at least 8 characters)")}</label>
+                  <input id="account-password" type_="password" autoComplete="current-password" minLength=8 required=true value={password} onChange={event => setPassword(_ => JsxEvent.Form.target(event)["value"])} />
+                  <button type_="submit" disabled={authBusy}>{React.string("Sign in")}</button>
+                  <button type_="button" disabled={authBusy} onClick={_ => runAuth("signup")}>{React.string("Create account")}</button>
+                  <button type_="button" disabled={authBusy} onClick={_ => runAuth("reset")}>{React.string("Forgot password?")}</button>
+                </form>}
+            {authError != "" ? <p role="alert" className="account-error">{React.string(authError)}</p> : React.null}
+            {authMessage != "" ? <p role="status" className="account-message">{React.string(authMessage)}</p> : React.null}
+            {syncError != "" ? <div className="account-error" role="alert"><p>{React.string(syncError)}</p><button type_="button" disabled={userId == "" || syncing} onClick={_ => retrySync()}>{React.string(cloudReady ? "Retry sync" : "Retry loading")}</button></div> : React.null}
+          </section>
+          <section className="settings-section" ariaLabel="CURE tolerance">
+            <h2>{React.string("CURE tolerance")}</h2><p>{React.string("Choose how many points of difference CURE allows before recommending a response.")}</p>
+            <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
+              {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)}>{React.string(Int.toString(choice))}</button>)->React.array}
+            </div>
+            {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
+            {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
+          </section>
+          <section className="settings-section" ariaLabel="Appearance">
+            <h2>{React.string("Appearance")}</h2><p>{React.string("Choose the color theme for this device.")}</p>
+            <div className="theme-options" role="group" ariaLabel="Color theme">
+              {["auto", "light", "dark"]->Array.map(choice => <button key={choice} type_="button" ariaPressed={theme == choice ? #"true" : #"false"} className={theme == choice ? "selected" : ""} onClick={_ => chooseTheme(choice)}>{React.string(choice->String.capitalize)}</button>)->React.array}
+            </div>
+          </section>
+          <button className="settings-info-link" type_="button" onClick={_ => openInfo()}>{React.string("How the method works →")}</button>
+        </section>
+      } else if showInfo {
+        <div className="info-view"><button className="info-back" type_="button" onClick={_ => leaveInfo()}>{React.string(returnView == "settings" ? "Back to settings" : "Back to tracker")}</button><Info /></div>
       } else if showInsights {
         <section className="insights-page">
           <h1>{React.string("Insights")}</h1>
@@ -827,11 +835,11 @@ let make = () => {
       }}
     </main>
     <nav className="mobile-bottom-nav" ariaLabel="Mobile navigation">
-      <button type_="button" className={showDashboard ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
-      <button type_="button" className={!showDashboard && !showInsights && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
-      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setMobileMenuOpen(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
+      <button type_="button" className={showDashboard && !showInfo ? "active" : ""} onClick={_ => openHome()}>{React.string("Home")}</button>
+      <button type_="button" className={!showDashboard && !showInsights && !showSettings && !showInfo ? "active" : ""} onClick={_ => openLedger()}>{React.string("Ledger")}</button>
+      <button type_="button" className="mobile-add" ariaLabel="Add a person" onClick={_ => {setAddOpen(_ => true); setShowSettings(_ => false); setShowInfo(_ => false); setShowDashboard(_ => false); setShowInsights(_ => false); scrollTo(0, 0)}}>{React.string("+")}</button>
       <button type_="button" className={showInsights ? "active" : ""} onClick={_ => openInsights()}>{React.string("Insights")}</button>
-      <button type_="button" ariaExpanded={mobileMenuOpen} ariaControls="mobile-settings-panel" onClick={_ => setMobileMenuOpen(previous => !previous)}>{React.string("Settings")}</button>
+      <button type_="button" className={showSettings ? "active" : ""} onClick={_ => openSettings()}>{React.string("Settings")}</button>
     </nav>
   </div>
 }
