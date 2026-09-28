@@ -295,7 +295,7 @@ html[data-theme="dark"] .own-move-options button.action-request.selected { backg
   .sidebar-foot { margin: 15px 7px 0; }
   .sidebar-collapsed .sidebar { padding-right: 8px; padding-left: 8px; }
   .sidebar-collapsed .brand { justify-content: center; padding: 0 0 25px; }
-  .sidebar-collapsed .brand button:first-child, .sidebar-collapsed .sidebar-search, .sidebar-collapsed .sidebar-nav-label, .sidebar-collapsed .add-form, .sidebar-collapsed .sidebar-quote, .sidebar-collapsed .sidebar-foot, .sidebar-collapsed .backup-body, .sidebar-collapsed .sidebar-settings-panel { display: none; }
+  .sidebar-collapsed .brand button:first-child, .sidebar-collapsed .sidebar-search, .sidebar-collapsed .sidebar-nav-label, .sidebar-collapsed .account-tools, .sidebar-collapsed .add-form, .sidebar-collapsed .sidebar-quote, .sidebar-collapsed .sidebar-foot, .sidebar-collapsed .backup-body, .sidebar-collapsed .sidebar-settings-panel { display: none; }
   .sidebar-collapsed .primary-nav button, .sidebar-collapsed .backup-toggle, .sidebar-collapsed .sidebar-settings-toggle { justify-content: center; padding: 8px 0; }
 }
 
