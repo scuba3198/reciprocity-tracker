@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import {readFileSync} from 'node:fs'
 import {decode, load, save} from '../src/ThinkAheadStorage.js'
 import {decode as decodeBackup} from '../src/LocalBackup.js'
 import {history, next} from '../src/State.res.mjs'
-import {closeCall, result, score} from '../src/ThinkAhead.res.mjs'
+import {canSave, closeCall, credibilityValue, credibilities, likelihoodValue, likelihoods, result, score} from '../src/ThinkAhead.res.mjs'
 
 const consequence = (utility, likelihood = 'Likely', credibility = 'Probably yes') => ({
   id: crypto.randomUUID(), description: 'A later outcome', likelihood, utility,
@@ -30,6 +31,12 @@ test('old browser data loads without scenarios; scenarios use a separate key', (
   } finally {
     delete globalThis.localStorage
   }
+})
+
+test('existing scenario labels and saved likelihood values still load', () => {
+  const old = {...scenario, choiceA: {...scenario.choiceA, label: 'Stay at current job'}}
+  assert.deepEqual(decode(JSON.stringify([old])), [old])
+  assert.equal(score(old.choiceA), 0.5)
 })
 
 test('a failed browser write reports failure without changing saved scenarios', () => {
@@ -80,4 +87,35 @@ test('equal scores tie and a narrow difference warns that assumptions can revers
   assert.equal(closeCall(a, b), true)
   assert.equal(closeCall({...a, consequences: [consequence(2, 'Very unlikely')]}, b), true)
   assert.equal(closeCall({...a, immediateUtility: 2}, b), false)
+})
+
+test('display percentages match the unchanged likelihood and credibility weights', () => {
+  for (const [value, label] of likelihoods) {
+    assert.match(label, new RegExp(`~${likelihoodValue(value) * 100}%`))
+  }
+  for (const [value, label] of credibilities) {
+    assert.match(label, new RegExp(`~${credibilityValue(value) * 100}%`))
+  }
+})
+
+test('saving requires nonblank names and descriptions, but no future outcomes', () => {
+  const immediateOnly = {...scenario, choiceA: {...scenario.choiceA, consequences: []}}
+  assert.equal(canSave(immediateOnly), true)
+  assert.equal(canSave({...immediateOnly, choiceB: {...immediateOnly.choiceB, label: immediateOnly.choiceA.label}}), true)
+  assert.equal(canSave({...immediateOnly, title: '  '}), false)
+  assert.equal(canSave({...immediateOnly, choiceA: {...immediateOnly.choiceA, label: '  '}}), false)
+  assert.equal(canSave({...immediateOnly, choiceB: {...immediateOnly.choiceB, label: ''}}), false)
+  assert.equal(canSave({...scenario, choiceA: {...scenario.choiceA, consequences: [{...scenario.choiceA.consequences[0], description: '  '}]}}), false)
+  assert.equal(score(immediateOnly.choiceA), 2)
+})
+
+test('choice names are edited in Choices and reused as Possible outcomes headings', () => {
+  const source = readFileSync(new URL('../src/ThinkAhead.res', import.meta.url), 'utf8')
+  const choices = source.split('{step == 0 ?')[1].split(': step == 1 ?')[0]
+  const outcomes = source.split('let choiceCard =')[1].split('let (_, _, top)')[0]
+  assert.match(choices, /"Option A name" : "Option B name"/)
+  assert.match(choices, /<input value=\{choice\.label\}/)
+  assert.match(outcomes, /<h3>\{React\.string\(choice\.label\)\}<\/h3>/)
+  assert.doesNotMatch(outcomes, /<input value=\{choice\.label\}/)
+  assert.doesNotMatch(outcomes, /Immediate effect/)
 })
