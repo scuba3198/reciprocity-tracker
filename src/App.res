@@ -411,8 +411,8 @@ let make = () => {
     } else {switch (State.actionFromChoice(myMove), State.actionFromChoice(theirMove), interactionDate->normalizeDate->Nullable.toOption) {
     | (_, _, None) => setDateError(_ => "Enter a real date as YYYY-MM-DD or eight digits.")
     | (Some(mine), Some(theirs), Some(date)) => {
-        let myInput = myMove == "NoAction" ? "" : myActionDate->String.trim
-        let theirInput = theirMove == "NoAction" ? "" : theirActionDate->String.trim
+        let myInput = myActionDate->String.trim
+        let theirInput = theirActionDate->String.trim
         let mineDate = myInput == "" ? Some("") : myInput->normalizeDate->Nullable.toOption
         let theirsDate = theirInput == "" ? Some("") : theirInput->normalizeDate->Nullable.toOption
         switch (mineDate, theirsDate) {
@@ -454,8 +454,8 @@ let make = () => {
       setEntryEditError(_ => "Choose a role for each person. Include a Cooperated or Defected role, or pair Requested with Unable.")
     } else {switch (State.actionFromChoice(editMyMove), State.actionFromChoice(editTheirMove), editDate->normalizeDate->Nullable.toOption) {
     | (Some(myMove), Some(move), Some(date)) => {
-        let myInput = editMyMove == "NoAction" ? "" : editMyActionDate->String.trim
-        let theirInput = editTheirMove == "NoAction" ? "" : editTheirActionDate->String.trim
+        let myInput = editMyActionDate->String.trim
+        let theirInput = editTheirActionDate->String.trim
         let mineDate = myInput == "" ? Some("") : myInput->normalizeDate->Nullable.toOption
         let theirsDate = theirInput == "" ? Some("") : theirInput->normalizeDate->Nullable.toOption
         switch (mineDate, theirsDate) {
@@ -703,7 +703,7 @@ let make = () => {
             </section>
 
             <section className="record-section">
-              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Classify each person's role as Cooperated, Defected, Requested, or Unable. Older No action records keep their original label.")}</p></div>
+              <div className="record-intro"><h2>{React.string("What happened?")}</h2><p>{React.string("Classify each person's role as Cooperated, Defected, Requested, or Unable.")}</p></div>
               <div className="pending-drafts" ariaLabel="Pending drafts">
                 <h3>{React.string("Pending rounds")}</h3>
                 {person.drafts->Array.mapWithIndex((draft, index) => {
@@ -730,8 +730,8 @@ let make = () => {
                 <button type_="button" className="action-dates-toggle" ariaExpanded={actionDatesOpen} ariaControls="action-dates" onClick={_ => {setActionDatesOpen(previous => !previous); setCalendarTarget(_ => "")}}>{React.string("Different action dates? Add them")}<span ariaHidden=true>{React.string(actionDatesOpen ? "−" : "+")}</span></button>
                 {actionDatesOpen
                   ? <div id="action-dates" className="action-dates-inputs">
-                      <div><label className="note-label" htmlFor="my-action-date">{React.string("Your action date (optional)")}</label><div className="date-input-wrap"><input id="my-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={myActionDate} maxLength=10 disabled={myMove == "NoAction"} onClick={_ => openCalendar("my", myActionDate)} onChange={event => {setMyActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" disabled={myMove == "NoAction"} ariaLabel={calendarTarget == "my" ? "Close your action calendar" : "Open your action calendar"} ariaExpanded={calendarTarget == "my"} onClick={_ => calendarTarget == "my" ? setCalendarTarget(_ => "") : openCalendar("my", myActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{myMove == "NoAction" ? React.null : calendarPanel("my", myActionDate, "Choose your action date")}</div>
-                      <div><label className="note-label" htmlFor="their-action-date">{React.string("Their action date (optional)")}</label><div className="date-input-wrap"><input id="their-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={theirActionDate} maxLength=10 disabled={theirMove == "NoAction"} onClick={_ => openCalendar("their", theirActionDate)} onChange={event => {setTheirActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" disabled={theirMove == "NoAction"} ariaLabel={calendarTarget == "their" ? "Close their action calendar" : "Open their action calendar"} ariaExpanded={calendarTarget == "their"} onClick={_ => calendarTarget == "their" ? setCalendarTarget(_ => "") : openCalendar("their", theirActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{theirMove == "NoAction" ? React.null : calendarPanel("their", theirActionDate, "Choose their action date")}</div>
+                      <div><label className="note-label" htmlFor="my-action-date">{React.string("Your action date (optional)")}</label><div className="date-input-wrap"><input id="my-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={myActionDate} maxLength=10 onClick={_ => openCalendar("my", myActionDate)} onChange={event => {setMyActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" ariaLabel={calendarTarget == "my" ? "Close your action calendar" : "Open your action calendar"} ariaExpanded={calendarTarget == "my"} onClick={_ => calendarTarget == "my" ? setCalendarTarget(_ => "") : openCalendar("my", myActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{calendarPanel("my", myActionDate, "Choose your action date")}</div>
+                      <div><label className="note-label" htmlFor="their-action-date">{React.string("Their action date (optional)")}</label><div className="date-input-wrap"><input id="their-action-date" className="date-input" type_="text" inputMode="numeric" placeholder="YYYY-MM-DD" value={theirActionDate} maxLength=10 onClick={_ => openCalendar("their", theirActionDate)} onChange={event => {setTheirActionDate(_ => JsxEvent.Form.target(event)["value"]); setCalendarTarget(_ => ""); setActionDateError(_ => "")}} /><button className="calendar-toggle" type_="button" ariaLabel={calendarTarget == "their" ? "Close their action calendar" : "Open their action calendar"} ariaExpanded={calendarTarget == "their"} onClick={_ => calendarTarget == "their" ? setCalendarTarget(_ => "") : openCalendar("their", theirActionDate)}><span className="calendar-glyph" ariaHidden=true></span></button></div>{calendarPanel("their", theirActionDate, "Choose their action date")}</div>
                     </div>
                   : React.null}
                 {actionDateError != "" ? <p className="date-error" role="alert">{React.string(actionDateError)}</p> : React.null}
@@ -751,7 +751,6 @@ let make = () => {
                   <button type_="button" ariaPressed={myMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (myMove == "Defect" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
                   <button type_="button" ariaPressed={myMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (myMove == "Request" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   <button type_="button" ariaPressed={myMove == "Unable" ? #"true" : #"false"} className={"action-request" ++ (myMove == "Unable" ? " selected" : "")} onClick={_ => setMyMove(previous => previous == "Unable" ? "" : "Unable")}>{React.string("Unable")}</button>
-                  {myMove == "NoAction" ? <button type_="button" ariaPressed=#"true" className="selected" onClick={_ => {setMyMove(_ => ""); setMyActionDate(_ => "")}}>{React.string("No action (older draft)")}</button> : React.null}
                 </div>
                 {myMove == "" ? <p className="own-move-hint">{React.string("Choose an action for each person before confirming.")}</p> : React.null}
                 <p className="own-move-hint">{React.string("Cooperate (C): Helped, contributed, kept promise, or otherwise acted cooperatively.")}</p>
@@ -766,7 +765,6 @@ let make = () => {
                   <button type_="button" ariaPressed={theirMove == "Defect" ? #"true" : #"false"} className={"action-defect" ++ (theirMove == "Defect" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Defect" ? "" : "Defect")}>{React.string("Defected")}</button>
                   <button type_="button" ariaPressed={theirMove == "Request" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "Request" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Request" ? "" : "Request")}>{React.string("Requested")}</button>
                   <button type_="button" ariaPressed={theirMove == "Unable" ? #"true" : #"false"} className={"action-request" ++ (theirMove == "Unable" ? " selected" : "")} onClick={_ => setTheirMove(previous => previous == "Unable" ? "" : "Unable")}>{React.string("Unable")}</button>
-                  {theirMove == "NoAction" ? <button type_="button" ariaPressed=#"true" className="selected" onClick={_ => {setTheirMove(_ => ""); setTheirActionDate(_ => "")}}>{React.string("No action (older draft)")}</button> : React.null}
                 </div>
               </div>
               <p className="own-move-hint">{React.string("Use the same meanings for what they did. A round needs a Cooperated or Defected role, or a Requested/Unable pair.")}</p>
@@ -787,7 +785,7 @@ let make = () => {
                     let different = switch entry.myMove { | State.Cooperated => item.recommended != State.Cooperate | State.Defected => item.recommended != State.Defect | _ => false }
                     let hasActionDates = entry.myActionDate != "" || entry.theirActionDate != ""
                     <li key={Int.toString(item.sourceIndex)} className={switch entry.move { | State.Cooperated => "cooperate" | State.Defected => "defect" | _ => "" }}>
-                      <span className="history-symbol">{React.string(switch entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" | State.NoAction => "–" })}</span>
+                      <span className="history-symbol">{React.string(switch entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" })}</span>
                       <div>
                         <strong>{React.string("Them: " ++ State.actionLabel(entry.move))}</strong>{entry.category != "" ? <span className="history-category">{React.string(entry.category)}</span> : React.null}
                         <p className="history-moves">{React.string("CURE before: " ++ nextLabel(item.recommended) ++ " (difference " ++ Int.toString(item.differenceBefore) ++ ")")}{!hasActionDates ? <span className={different ? "actual-move diverged" : "actual-move"}>{React.string(" · You: " ++ State.actionLabel(entry.myMove) ++ (different ? " (different)" : ""))}</span> : React.null}</p>
@@ -803,18 +801,16 @@ let make = () => {
                         {editingEntryIndex == item.sourceIndex
                           ? <form className="entry-edit-form" ariaLabel="Edit confirmed entry" onSubmit={event => {ReactEvent.Form.preventDefault(event); saveEntryEdit(person)}}>
                               <label htmlFor="edit-my-move">{React.string("Your move")}</label>
-                              <select id="edit-my-move" value={editMyMove} onChange={event => {let choice = JsxEvent.Form.target(event)["value"]; setEditMyMove(_ => choice); if choice == "NoAction" {setEditMyActionDate(_ => "")}}}>
+                              <select id="edit-my-move" value={editMyMove} onChange={event => setEditMyMove(_ => JsxEvent.Form.target(event)["value"])}>
                                 <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option>
-                                {entry.myMove == State.NoAction ? <option value="NoAction">{React.string("No action (older entry)")}</option> : React.null}
                               </select>
                               <label htmlFor="edit-their-move">{React.string("Their move")}</label>
-                              <select id="edit-their-move" value={editTheirMove} onChange={event => {let choice = JsxEvent.Form.target(event)["value"]; setEditTheirMove(_ => choice); if choice == "NoAction" {setEditTheirActionDate(_ => "")}}}>
+                              <select id="edit-their-move" value={editTheirMove} onChange={event => setEditTheirMove(_ => JsxEvent.Form.target(event)["value"])}>
                                 <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option>
-                                {entry.move == State.NoAction ? <option value="NoAction">{React.string("No action (older entry)")}</option> : React.null}
                               </select>
                               <label htmlFor="edit-round-date">{React.string("Completion date")}</label><input id="edit-round-date" type_="date" required=true value={editDate} onChange={event => setEditDate(_ => JsxEvent.Form.target(event)["value"])} />
-                              <label htmlFor="edit-my-action-date">{React.string("Your action date (optional)")}</label><input id="edit-my-action-date" type_="date" value={editMyActionDate} disabled={editMyMove == "NoAction"} onChange={event => setEditMyActionDate(_ => JsxEvent.Form.target(event)["value"])} />
-                              <label htmlFor="edit-their-action-date">{React.string("Their action date (optional)")}</label><input id="edit-their-action-date" type_="date" value={editTheirActionDate} disabled={editTheirMove == "NoAction"} onChange={event => setEditTheirActionDate(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-my-action-date">{React.string("Your action date (optional)")}</label><input id="edit-my-action-date" type_="date" value={editMyActionDate} onChange={event => setEditMyActionDate(_ => JsxEvent.Form.target(event)["value"])} />
+                              <label htmlFor="edit-their-action-date">{React.string("Their action date (optional)")}</label><input id="edit-their-action-date" type_="date" value={editTheirActionDate} onChange={event => setEditTheirActionDate(_ => JsxEvent.Form.target(event)["value"])} />
                               <label htmlFor="edit-entry-note">{React.string("Note (optional)")}</label><input id="edit-entry-note" type_="text" maxLength=180 value={editNote} onChange={event => setEditNote(_ => JsxEvent.Form.target(event)["value"])} />
                               <label htmlFor="edit-entry-category">{React.string("Category (optional)")}</label><select id="edit-entry-category" value={editCategory} onChange={event => setEditCategory(_ => JsxEvent.Form.target(event)["value"])}>
                                 {!editCategoryKnown ? <option value={editCategory}>{React.string(editCategory)}</option> : React.null}

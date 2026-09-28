@@ -32,7 +32,6 @@ let actionField = (obj, name) => switch stringField(obj, name) {
 | Some("Defect") => Some(State.Defected)
 | Some("Request") => Some(State.Requested)
 | Some("Unable") => Some(State.Unable)
-| Some("NoAction") => Some(State.NoAction)
 | _ => None
 }
 let decodeDraft = (json, id) => switch JSON.Decode.object(json) {
@@ -63,7 +62,7 @@ let decodeEntry = json => switch JSON.Decode.object(json) {
     }
     switch (actionField(obj, "move"), actionField(obj, "myMove"), stringField(obj, "note"), date, category, myActionDate, theirActionDate) {
   | (Some(move), Some(myMove), Some(note), Some(date), Some(category), Some(myActionDate), Some(theirActionDate)) => {
-      if !State.validChoices(State.choiceFromAction(myMove), State.choiceFromAction(move)) || (myMove == State.NoAction && myActionDate != "") || (move == State.NoAction && theirActionDate != "") || (myActionDate != "" && myActionDate > date) || (theirActionDate != "" && theirActionDate > date) {
+      if !State.validChoices(State.choiceFromAction(myMove), State.choiceFromAction(move)) || (myActionDate != "" && myActionDate > date) || (theirActionDate != "" && theirActionDate > date) {
         None
       } else {
         let entry: State.entry = {move, myMove, note, date, category, myActionDate, theirActionDate}
