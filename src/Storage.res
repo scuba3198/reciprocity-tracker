@@ -8,9 +8,13 @@
 let key = "good-faith.people.v2"
 let toleranceKey = "good-faith.cure-tolerance"
 let loadTolerance = () => try {
-  getItem(toleranceKey)->Nullable.toOption == Some("1") ? 1 : 2
+  switch getItem(toleranceKey)->Nullable.toOption {
+  | Some("1") => 1
+  | Some("2") => 2
+  | _ => 3
+  }
 } catch {
-| _ => 2
+| _ => 3
 }
 let saveTolerance = tolerance => try {
   setItem(toleranceKey, Int.toString(tolerance))

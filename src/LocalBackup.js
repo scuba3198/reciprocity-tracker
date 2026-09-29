@@ -26,7 +26,7 @@ export function decode(raw) {
   try {
     const backup = JSON.parse(raw)
     if (!fields(backup, ['version', 'people', 'tolerance']) || backup.version !== 1 ||
-        ![1, 2].includes(backup.tolerance) || !Array.isArray(backup.people) || !backup.people.every(validPerson) ||
+        ![1, 2, 3].includes(backup.tolerance) || !Array.isArray(backup.people) || !backup.people.every(validPerson) ||
         new Set(backup.people.map(person => person.id)).size !== backup.people.length) return undefined
     if (backup.scenarios !== undefined && !Array.isArray(backup.scenarios)) return undefined
     const scenarios = backup.scenarios === undefined ? [] : decodeScenarios(backup.scenarios)

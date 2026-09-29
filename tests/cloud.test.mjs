@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {accountTolerance, consumeGuestLedger, consumeGuestScenarios, enqueueWrite, guestSeed, initialLedger, initialScenarios, missingScenariosColumn, persistPending, persistPendingScenarios, recoverPending} from '../src/Supabase.js'
+import {accountTolerance, consumeGuestLedger, consumeGuestScenarios, enqueueWrite, guestSeed, initialLedger, initialScenarios, missingScenariosColumn, persistPending, persistPendingScenarios, recoverPending, saveTolerance} from '../src/Supabase.js'
 
 test('account tolerance takes precedence and an unset account can inherit the browser choice', () => {
   assert.equal(accountTolerance({user_metadata: {cure_tolerance: 1}}, 2), 1)
   assert.equal(accountTolerance({user_metadata: {cure_tolerance: 2}}, 1), 2)
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 3}}, 1), 3)
+  assert.equal(accountTolerance({user_metadata: {}}, 1), 1)
   assert.equal(accountTolerance({user_metadata: {}}, 2), 2)
-  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 3}}, 1), 1)
-  assert.equal(accountTolerance({user_metadata: {}}), 2)
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 9}}, 9), 3)
+  assert.equal(accountTolerance({user_metadata: {}}), 3)
+})
+
+test('cloud CURE tolerance rejects unsupported values before making an auth request', async () => {
+  await assert.rejects(saveTolerance('account-a', 4), /Invalid CURE tolerance/)
 })
 
 test('first sign-in copies local data only when cloud is empty and queues writes in order', async () => {

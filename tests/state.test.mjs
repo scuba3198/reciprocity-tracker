@@ -60,29 +60,38 @@ test('switching CURE tolerance recalculates current and historical recommendatio
     entry('Cooperate', 'Defect', '2024-03-01'),
     entry('Cooperate', 'Defect', '2024-03-02'),
     entry('Cooperate', 'Defect', '2024-03-03'),
+    entry('Cooperate', 'Defect', '2024-03-04'),
   ]
   assert.equal(next(breaches.slice(0, 2), 1).move, 'Defect')
   assert.equal(next(breaches.slice(0, 2), 2).move, 'Cooperate')
   assert.equal(next(breaches.slice(0, 2)).move, 'Cooperate')
-  assert.equal(next(breaches, 2).move, 'Defect')
+  assert.equal(next(breaches.slice(0, 3), 2).move, 'Defect')
+  assert.equal(next(breaches.slice(0, 3), 3).move, 'Cooperate')
+  assert.equal(next(breaches.slice(0, 3)).move, 'Cooperate')
+  assert.equal(next(breaches, 3).move, 'Defect')
+  assert.equal(next(breaches).move, 'Defect')
   assert.equal(history(breaches, 1)[2].recommended, 'Defect')
   assert.equal(history(breaches, 2)[2].recommended, 'Cooperate')
-  assert.equal(history(breaches)[2].recommended, 'Cooperate')
-  assert.match(next(breaches, 2).explanation, /more than 2/)
+  assert.equal(history(breaches, 2)[3].recommended, 'Defect')
+  assert.equal(history(breaches, 3)[3].recommended, 'Cooperate')
+  assert.equal(history(breaches)[3].recommended, 'Cooperate')
+  assert.match(next(breaches, 3).explanation, /more than 3/)
 })
 
-test('CURE tolerance defaults to 2 and persists the selected level in this browser', () => {
+test('CURE tolerance defaults to 3 and persists all selected levels in this browser', () => {
   let stored = null
   globalThis.localStorage = {
     getItem: key => key === 'good-faith.cure-tolerance' ? stored : null,
     setItem: (key, value) => { assert.equal(key, 'good-faith.cure-tolerance'); stored = value },
   }
   try {
-    assert.equal(loadTolerance(), 2)
-    assert.equal(saveTolerance(1), true)
-    assert.equal(loadTolerance(), 1)
+    assert.equal(loadTolerance(), 3)
+    for (const choice of [1, 2, 3]) {
+      assert.equal(saveTolerance(choice), true)
+      assert.equal(loadTolerance(), choice)
+    }
     stored = 'invalid'
-    assert.equal(loadTolerance(), 2)
+    assert.equal(loadTolerance(), 3)
     globalThis.localStorage.setItem = () => { throw new Error('storage unavailable') }
     assert.equal(saveTolerance(1), false)
   } finally {
@@ -95,11 +104,13 @@ test('local backups accept complete ledgers and reject malformed or partial data
     {id: 'draft', move: '', myMove: 'Request', note: 'in progress', date: '', category: '', myActionDate: '', theirActionDate: ''},
   ]}]
   const backup = {version: 1, people: people.map(person => ({...person, entries: person.entries.map(item => ({...item, move: 'Defect', myMove: 'Cooperate'}))})), tolerance: 1}
-  assert.deepEqual(decodeBackup(JSON.stringify(backup)), [people, 1, '[]'])
+  for (const tolerance of [1, 2, 3]) {
+    assert.deepEqual(decodeBackup(JSON.stringify({...backup, tolerance})), [people, tolerance, '[]'])
+  }
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], entries: [{...people[0].entries[0], move: 'invalid'}]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], drafts: [null]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [backup.people[0], backup.people[0]]})), undefined)
-  assert.equal(decodeBackup(JSON.stringify({...backup, tolerance: 3})), undefined)
+  assert.equal(decodeBackup(JSON.stringify({...backup, tolerance: 4})), undefined)
   assert.equal(decodeBackup('{"version":1,"people":[]}'), undefined)
 })
 

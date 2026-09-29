@@ -62,8 +62,8 @@ export function initialScenarios(cloud, local) {
 
 export const missingScenariosColumn = error => ['42703', 'PGRST204'].includes(error?.code) && error.message?.includes('scenarios')
 
-export const accountTolerance = (user, fallback = 2) => [1, 2].includes(user?.user_metadata?.cure_tolerance)
-  ? user.user_metadata.cure_tolerance : fallback
+export const accountTolerance = (user, fallback = 3) => [1, 2, 3].includes(user?.user_metadata?.cure_tolerance)
+  ? user.user_metadata.cure_tolerance : [1, 2, 3].includes(fallback) ? fallback : 3
 
 export function subscribe(callback) {
   let previousUserId
@@ -98,7 +98,7 @@ export async function loadOrMigrate(userId, localPeople, localTolerance, localSc
   return enqueueWrite(async () => {
     const user = await assertCurrentUser(userId)
     const tolerance = accountTolerance(user, localTolerance)
-    if (user.user_metadata?.cure_tolerance !== tolerance && tolerance === 2) await saveTolerance(userId, tolerance)
+    if (![1, 2, 3].includes(user.user_metadata?.cure_tolerance)) await saveTolerance(userId, tolerance)
     const storage = browserStorage()
     const pending = await recoverPending(userId, storage, writeLedger, assertCurrentUser)
     const table = client.from('good_faith_ledgers')
@@ -219,7 +219,7 @@ async function assertCurrentUser(userId) {
 }
 
 export async function saveTolerance(userId, tolerance) {
-  if (tolerance !== 1 && tolerance !== 2) throw new Error('Invalid CURE tolerance.')
+  if (![1, 2, 3].includes(tolerance)) throw new Error('Invalid CURE tolerance.')
   await assertCurrentUser(userId)
   const {data, error} = await client.auth.updateUser({data: {cure_tolerance: tolerance}})
   if (error) throw error

@@ -44,9 +44,9 @@ let decide = (difference, tolerance) => {
   }
 }
 
-let next = (entries: array<entry>, ~tolerance=2) => decide(entries->orderedEntries->Array.reduce(0, update), tolerance)
+let next = (entries: array<entry>, ~tolerance=3) => decide(entries->orderedEntries->Array.reduce(0, update), tolerance)
 
-let history = (entries: array<entry>, ~tolerance=2): array<historyItem> => {
+let history = (entries: array<entry>, ~tolerance=3): array<historyItem> => {
   let difference = ref(0)
   entries->orderedIndexedEntries->Array.map(({entry, sourceIndex}) => {
     let before = difference.contents

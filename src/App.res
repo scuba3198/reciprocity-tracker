@@ -101,7 +101,7 @@ let make = () => {
   let (toleranceBusy, setToleranceBusy) = React.useState(_ => false)
   let (toleranceError, setToleranceError) = React.useState(_ => "")
   let (backupPeople, setBackupPeople) = React.useState(_ => [])
-  let (backupTolerance, setBackupTolerance) = React.useState(_ => 2)
+  let (backupTolerance, setBackupTolerance) = React.useState(_ => 3)
   let (backupScenarios, setBackupScenarios) = React.useState(_ => [])
   let (backupPreview, setBackupPreview) = React.useState(_ => false)
   let (backupError, setBackupError) = React.useState(_ => "")
@@ -814,7 +814,7 @@ let make = () => {
           <section className="settings-section" ariaLabel="CURE tolerance">
             <h2>{React.string("CURE tolerance")}</h2><p>{React.string("Choose how many points of difference CURE allows before recommending a response.")}</p>
             <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
-              {[1, 2]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)->ignore}>{React.string(Int.toString(choice))}</button>)->React.array}
+              {[1, 2, 3]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)->ignore}>{React.string(Int.toString(choice))}</button>)->React.array}
             </div>
             {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
             {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}

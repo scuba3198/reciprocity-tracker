@@ -41,4 +41,4 @@ A provisional interaction record. It does not enter the person's history or affe
 An optional label for the context of a round. It does not divide a person's CURE history.
 
 **CURE**:
-A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one or two, default two); otherwise it recommends withholding cooperation. Request, Unable, and NoAction add no defection; each defection has equal weight regardless of stakes.
+A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one, two, or three; default three); otherwise it recommends withholding cooperation. Request, Unable, and NoAction add no defection; each defection has equal weight regardless of stakes.
