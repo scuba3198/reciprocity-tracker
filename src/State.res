@@ -106,6 +106,21 @@ let history = (entries: array<entry>, ~tolerance=2): array<historyItem> => {
 let replaceEntry = (entries: array<entry>, index: int, replacement: entry) =>
   entries->Array.mapWithIndex((entry, current) => current == index ? replacement : entry)
 
+let editLedgerEntry = (person: person, sourceId: string, targetId: string, index: int, replacement: entry): option<person> => {
+  let ledgers = allLedgers(person)
+  switch (ledgers->Array.find(ledger => ledger.id == sourceId), ledgers->Array.find(ledger => ledger.id == targetId)) {
+  | (Some(source), Some(_)) if index >= 0 && index < Array.length(source.entries) => {
+      if sourceId == targetId {
+        Some(updateLedger(person, sourceId, view => {...view, entries: replaceEntry(view.entries, index, replacement)}))
+      } else {
+        let removed = updateLedger(person, sourceId, view => {...view, entries: view.entries->Array.filterWithIndex((_, current) => current != index)})
+        Some(updateLedger(removed, targetId, view => {...view, entries: Array.concat(view.entries, [replacement])}))
+      }
+    }
+  | _ => None
+  }
+}
+
 let differentFromRecommendation = (action, recommended) => switch action {
 | Cooperated => recommended != Cooperate
 | Defected => recommended != Defect

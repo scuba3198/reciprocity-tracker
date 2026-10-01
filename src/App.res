@@ -66,6 +66,7 @@ let make = () => {
   let (editTargetId, setEditTargetId) = React.useState(_ => "")
   let (editName, setEditName) = React.useState(_ => "")
   let (editingEntryIndex, setEditingEntryIndex) = React.useState(_ => -1)
+  let (editLedgerId, setEditLedgerId) = React.useState(_ => "")
   let (editMyMove, setEditMyMove) = React.useState(_ => "")
   let (editTheirMove, setEditTheirMove) = React.useState(_ => "")
   let (editDate, setEditDate) = React.useState(_ => "")
@@ -644,6 +645,7 @@ let make = () => {
 
   let startEditEntry = (index, entry: State.entry) => {
     setEditingEntryIndex(_ => index)
+    setEditLedgerId(_ => selectedLedgerId)
     setEditMyMove(_ => State.choiceFromAction(entry.myMove))
     setEditTheirMove(_ => State.choiceFromAction(entry.move))
     setEditDate(_ => entry.date)
@@ -666,9 +668,17 @@ let make = () => {
         switch (mineDate, theirsDate) {
         | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
             let replacement: State.entry = {move, myMove, date, myActionDate, theirActionDate, note: editNote->String.trim, category: editCategory}
-            commitLedger(person, item => {...item, entries: State.replaceEntry(item.entries, editingEntryIndex, replacement)})->ignore
-            setEditingEntryIndex(_ => -1)
-            setEntryEditError(_ => "")
+            switch selected->Option.flatMap(owner => State.editLedgerEntry(owner, selectedLedgerId, editLedgerId, editingEntryIndex, replacement)) {
+            | None => setEntryEditError(_ => "This round or ledger is no longer available. Reopen the entry and try again.")
+            | Some(updated) => {
+                commit(people->Array.map(item => item.id == person.id ? updated : item))
+                ->Promise.then(saved => {
+                  if saved {setEditingEntryIndex(_ => -1); setEntryEditError(_ => "")}
+                  else {setEntryEditError(_ => "Could not save the edited round. Retry sync or try again.")}
+                  Promise.resolve(())
+                })->ignore
+              }
+            }
           }
         | _ => setEntryEditError(_ => "Action dates must be real dates no later than the round completion date.")
         }
@@ -1095,6 +1105,11 @@ let make = () => {
                         <button className="text-button entry-edit-toggle" type_="button" ariaExpanded={editingEntryIndex == item.sourceIndex} onClick={_ => editingEntryIndex == item.sourceIndex ? setEditingEntryIndex(_ => -1) : startEditEntry(item.sourceIndex, entry)}>{React.string("Edit entry")}</button>
                         {editingEntryIndex == item.sourceIndex
                           ? <form className="entry-edit-form" ariaLabel="Edit confirmed entry" onSubmit={event => {ReactEvent.Form.preventDefault(event); saveEntryEdit(person)}}>
+                              <label htmlFor="edit-entry-ledger">{React.string("Ledger")}</label>
+                              <select id="edit-entry-ledger" value={editLedgerId} onChange={event => setEditLedgerId(_ => JsxEvent.Form.target(event)["value"])}>
+                                {owner->State.allLedgers->Array.map(ledger => <option key={ledger.id} value={ledger.id}>{React.string(ledger.name)}</option>)->React.array}
+                              </select>
+                              <p className="own-move-hint">{React.string("Choose another ledger to move this round when you save. Both ledgers' CURE recommendations will be recalculated.")}</p>
                               <label htmlFor="edit-my-move">{React.string("Your move")}</label>
                               <select id="edit-my-move" value={editMyMove} onChange={event => setEditMyMove(_ => JsxEvent.Form.target(event)["value"])}>
                                 <option value="">{React.string("Choose an action")}</option><option value="Cooperate">{React.string("Cooperated")}</option><option value="Defect">{React.string("Defected")}</option><option value="Request">{React.string("Requested")}</option><option value="Unable">{React.string("Unable")}</option><option value="NoAction">{React.string("No action")}</option>
@@ -1112,7 +1127,7 @@ let make = () => {
                                 <option value="">{React.string("None")}</option><option value="Work">{React.string("Work")}</option><option value="Favor">{React.string("Favor")}</option><option value="Commitment">{React.string("Commitment")}</option><option value="Money">{React.string("Money")}</option><option value="Social">{React.string("Social")}</option><option value="Support">{React.string("Support")}</option><option value="Other">{React.string("Other")}</option>
                               </select>
                               {entryEditError != "" ? <p className="date-error" role="alert">{React.string(entryEditError)}</p> : React.null}
-                              <div className="entry-edit-actions"><button type_="submit">{React.string("Save changes")}</button><button type_="button" onClick={_ => {setEditingEntryIndex(_ => -1); setEntryEditError(_ => "")}}>{React.string("Cancel")}</button></div>
+                              <div className="entry-edit-actions"><button type_="submit" disabled={!cloudReady || syncing}>{React.string("Save changes")}</button><button type_="button" onClick={_ => {setEditingEntryIndex(_ => -1); setEntryEditError(_ => "")}}>{React.string("Cancel")}</button></div>
                             </form>
                           : React.null}
                       </div>

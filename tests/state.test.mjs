@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation, effectiveTolerance, toleranceName, toleranceLabel, toleranceHelp, toleranceFromChoice, ledgerView, updateLedger, allLedgers, removeLedger} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation, effectiveTolerance, toleranceName, toleranceLabel, toleranceHelp, toleranceFromChoice, ledgerView, updateLedger, allLedgers, removeLedger, editLedgerEntry} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance, decodeBackup, serialize} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 import {trendPath} from '../src/Dashboard.res.mjs'
@@ -495,4 +495,44 @@ test('deleting an additional ledger removes only its history, drafts, and overri
   assert.deepEqual(removeLedger(person, 'missing'), person)
   const backup = {version: 1, people: JSON.parse(serialize([result])), tolerance: 2}
   assert.deepEqual(plain(decodeBackup(JSON.stringify(backup))[0]), [result])
+})
+
+
+test('editing a round can move it between General and additional ledgers without duplication', () => {
+  const draft = {myMove: '', move: '', note: 'pending', date: '', category: '', myActionDate: '', theirActionDate: ''}
+  const first = {...entry('Cooperate', 'Defect', '2024-03-02'), note: 'first'}
+  const second = {...first, note: 'second', category: 'Money', myActionDate: '2024-03-01'}
+  const person = {id: 'p', name: 'Alex', entries: [first, second], drafts: [{...draft, id: 'general-draft'}], cureDeltaOverride: 3,
+    ledgers: [
+      {id: 'money', name: 'Money', entries: [entry('Cooperate', 'Defect', '2024-03-03')], drafts: [{...draft, id: 'money-draft'}], cureDeltaOverride: 1},
+      {id: 'dishes', name: 'Dishes', entries: [], drafts: [], cureDeltaOverride: 2},
+    ]}
+  const before = JSON.stringify(person)
+  const moved = editLedgerEntry(person, '', 'money', history(person.entries)[1].sourceIndex, second)
+  assert.deepEqual(moved.entries, [first])
+  assert.deepEqual(moved.ledgers[0].entries, [person.ledgers[0].entries[0], second])
+  assert.equal(next(moved.entries).difference, 1)
+  assert.equal(next(moved.ledgers[0].entries, 1).move, 'Defect')
+  assert.deepEqual(moved.drafts, person.drafts)
+  assert.deepEqual(moved.ledgers[0].drafts, person.ledgers[0].drafts)
+  assert.equal(moved.cureDeltaOverride, 3)
+  assert.equal(moved.ledgers[0].cureDeltaOverride, 1)
+  assert.equal(JSON.stringify(person), before)
+  const sibling = editLedgerEntry(moved, 'money', 'dishes', 1, second)
+  assert.deepEqual(sibling.ledgers[0].entries, [person.ledgers[0].entries[0]])
+  assert.deepEqual(sibling.ledgers[1].entries, [second])
+  const back = editLedgerEntry(sibling, 'dishes', '', 0, second)
+  assert.deepEqual(back.entries, person.entries)
+  assert.deepEqual(back.ledgers[1].entries, [])
+  const corrected = {...second, move: 'Cooperated', note: 'corrected'}
+  assert.deepEqual(editLedgerEntry(back, '', '', 1, corrected).entries, [first, corrected])
+  assert.deepEqual(editLedgerEntry(person, '', 'money', 1, corrected).ledgers[0].entries[1], corrected)
+  for (const args of [['', 'missing', 1], ['missing', '', 0], ['', 'money', -1], ['', 'money', 2]]) {
+    assert.equal(editLedgerEntry(person, ...args, second), undefined)
+  }
+  const persisted = JSON.parse(serialize([back]))
+  const [restored] = decodeBackup(JSON.stringify({version: 1, people: persisted, tolerance: 2}))[0]
+  assert.deepEqual(restored.entries, back.entries)
+  assert.deepEqual(restored.ledgers[0].entries, back.ledgers[0].entries)
+  assert.deepEqual(restored.ledgers[1].entries, [])
 })
