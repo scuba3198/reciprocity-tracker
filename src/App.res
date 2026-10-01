@@ -44,6 +44,7 @@ let make = () => {
   let (people, setPeople) = React.useState(_ => [])
   let (selectedId, setSelectedId) = React.useState(_ => "")
   let (selectedLedgerId, setSelectedLedgerId) = React.useState(_ => "")
+  let (ledgerDeleteOpen, setLedgerDeleteOpen) = React.useState(_ => false)
   let (newLedgerName, setNewLedgerName) = React.useState(_ => "")
   let (newLedgerTolerance, setNewLedgerTolerance) = React.useState(_ => "")
   let (newName, setNewName) = React.useState(_ => "")
@@ -136,6 +137,7 @@ let make = () => {
       setPeople(_ => [])
       setScenarios(_ => [])
       setSelectedId(_ => "")
+      setLedgerDeleteOpen(_ => false)
       setEditingEntryIndex(_ => -1)
       setEntryEditError(_ => "")
       setToleranceBusy(_ => false)
@@ -510,6 +512,7 @@ let make = () => {
 
   let openPerson = (person: State.person) => {
     setSelectedLedgerId(_ => "")
+    setLedgerDeleteOpen(_ => false)
     setEditingEntryIndex(_ => -1)
     setEntryEditError(_ => "")
     setSelectedId(_ => person.id)
@@ -528,6 +531,7 @@ let make = () => {
 
   let createPerson = name => {
     setSelectedLedgerId(_ => "")
+    setLedgerDeleteOpen(_ => false)
     let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
     commit(Array.concat(people, [person]))->ignore
     setSelectedId(_ => person.id)
@@ -895,6 +899,7 @@ let make = () => {
           let ledgerName = switch activeLedger { | Some(ledger) => ledger.name | None => "General" }
           let inheritanceLabel = owner.cureDeltaOverride == None ? "Inherit from app default: " : "Inherit from " ++ owner.name ++ ": "
           let switchLedger = id => {
+            setLedgerDeleteOpen(_ => false)
             setSelectedLedgerId(_ => id)
             setEditingEntryIndex(_ => -1)
             setEntryEditError(_ => "")
@@ -944,6 +949,13 @@ let make = () => {
                 <option value="">{React.string("General · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, owner.generalCureDeltaOverride)))}</option>
                 {ledgers->Array.map(ledger => <option key={ledger.id} value={ledger.id}>{React.string(ledger.name ++ " · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, ledger.cureDeltaOverride)))}</option>)->React.array}
               </select>
+              {activeLedger != None ? <button className="text-button delete-button" type_="button" disabled={!cloudReady || syncing} onClick={_ => setLedgerDeleteOpen(_ => true)}>{React.string("Delete ledger")}</button> : React.null}
+              {ledgerDeleteOpen && activeLedger != None ? <ConfirmDialog title={"Delete " ++ ledgerName ++ " ledger?"} message="This permanently removes this ledger's interaction history, saved drafts, and tolerance override. The person and their other ledgers will be kept." keepLabel="Keep ledger" confirmLabel="Delete ledger permanently" onKeep={() => setLedgerDeleteOpen(_ => false)} onConfirm={() => {
+                setToleranceError(_ => "")
+                commit(people->Array.map(item => item.id == owner.id ? State.removeLedger(item, selectedLedgerId) : item))
+                ->Promise.then(saved => {if !saved {setToleranceError(_ => "Could not save ledger deletion. Retry sync or try again.")}; Promise.resolve(())})->ignore
+                switchLedger("")
+              }} /> : React.null}
               <details><summary>{React.string("Create another ledger")}</summary>
                 <form className="new-ledger-form" ariaLabel="Create ledger" onSubmit={event => {
                   ReactEvent.Form.preventDefault(event)

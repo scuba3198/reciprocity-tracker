@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation, effectiveTolerance, toleranceName, toleranceLabel, toleranceHelp, toleranceFromChoice, ledgerView, updateLedger, allLedgers} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation, effectiveTolerance, toleranceName, toleranceLabel, toleranceHelp, toleranceFromChoice, ledgerView, updateLedger, allLedgers, removeLedger} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance, decodeBackup, serialize} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 import {trendPath} from '../src/Dashboard.res.mjs'
@@ -477,4 +477,22 @@ test('theme choice persists and auto follows the system', async () => {
     delete globalThis.matchMedia
     delete globalThis.document
   }
+})
+
+
+test('deleting an additional ledger removes only its history, drafts, and override', () => {
+  const draft = {id: 'draft', myMove: '', move: '', note: 'pending', date: '', category: '', myActionDate: '', theirActionDate: ''}
+  const person = {id: 'p', name: 'Alex', entries: [entry('Cooperate', 'Defect', '2024-03-01')], drafts: [draft], cureDeltaOverride: 3, generalCureDeltaOverride: 2,
+    ledgers: [
+      {id: 'mistake', name: 'Mistake', entries: [entry('Cooperate', 'Defect', '2024-03-02')], drafts: [draft], cureDeltaOverride: 1},
+      {id: 'keep', name: 'Dishes', entries: [entry('Defect', 'Cooperate', '2024-03-03')], drafts: [draft], cureDeltaOverride: 3},
+    ]}
+  const before = JSON.stringify(person)
+  const result = removeLedger(person, 'mistake')
+  assert.deepEqual(result, {...person, ledgers: [person.ledgers[1]]})
+  assert.equal(JSON.stringify(person), before)
+  assert.equal(removeLedger(person, ''), person)
+  assert.deepEqual(removeLedger(person, 'missing'), person)
+  const backup = {version: 1, people: JSON.parse(serialize([result])), tolerance: 2}
+  assert.deepEqual(plain(decodeBackup(JSON.stringify(backup))[0]), [result])
 })

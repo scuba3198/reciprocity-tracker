@@ -78,6 +78,9 @@ let updateLedger = (person: person, ledgerId: string, change: person => person):
   }
 }
 
+let removeLedger = (person: person, ledgerId: string): person =>
+  ledgerId == "" ? person : {...person, ledgers: person.ledgers->Option.getOr([])->Array.filter(ledger => ledger.id != ledgerId)}
+
 let decide = (difference, tolerance) => {
   let activeTolerance = toleranceLabel(tolerance)
   let rule = "CURE · difference " ++ Int.toString(difference) ++ " · " ++ activeTolerance
