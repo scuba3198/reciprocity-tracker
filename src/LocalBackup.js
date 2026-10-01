@@ -20,7 +20,30 @@ const validEntry = entry => fields(entry, ['move', 'myMove', 'note', 'date', 'ca
 
 const validPerson = person => fields(person, ['id', 'name', 'entries', 'drafts']) && text(person.id) && person.id.trim() !== '' &&
   text(person.name) && person.name.trim() !== '' && Array.isArray(person.entries) && person.entries.every(validEntry) &&
-  Array.isArray(person.drafts) && person.drafts.every(validDraft)
+  Array.isArray(person.drafts) && person.drafts.every(validDraft) && new Set(person.drafts.map(draft => draft.id)).size === person.drafts.length &&
+  (person.cureDeltaOverride === undefined || person.cureDeltaOverride === null || [1, 2, 3].includes(person.cureDeltaOverride)) &&
+  (person.generalCureDeltaOverride === undefined || person.generalCureDeltaOverride === null || [1, 2, 3].includes(person.generalCureDeltaOverride)) &&
+  (person.ledgers === undefined || (Array.isArray(person.ledgers) && person.ledgers.every(validLedger) &&
+    new Set(person.ledgers.map(ledger => ledger.id)).size === person.ledgers.length))
+
+const validLedger = ledger => fields(ledger, ['id', 'name', 'entries', 'drafts']) && text(ledger.id) && ledger.id.trim() !== '' &&
+  text(ledger.name) && ledger.name.trim() !== '' && Array.isArray(ledger.entries) && ledger.entries.every(validEntry) &&
+  Array.isArray(ledger.drafts) && ledger.drafts.every(validDraft) &&
+  (ledger.cureDeltaOverride === undefined || ledger.cureDeltaOverride === null || [1, 2, 3].includes(ledger.cureDeltaOverride)) &&
+  new Set(ledger.drafts.map(draft => draft.id)).size === ledger.drafts.length
+const cleanOverride = value => [1, 2, 3].includes(value) ? value : undefined
+const cleanPerson = person => {
+  const {cureDeltaOverride, generalCureDeltaOverride, ledgers, ...rest} = person
+  return {
+    ...rest,
+    ...(cleanOverride(cureDeltaOverride) === undefined ? {} : {cureDeltaOverride: cleanOverride(cureDeltaOverride)}),
+    ...(cleanOverride(generalCureDeltaOverride) === undefined ? {} : {generalCureDeltaOverride: cleanOverride(generalCureDeltaOverride)}),
+    ...(Array.isArray(ledgers) ? {ledgers: ledgers.map(ledger => {
+      const {cureDeltaOverride, ...restLedger} = ledger
+      return {...restLedger, ...(cleanOverride(cureDeltaOverride) === undefined ? {} : {cureDeltaOverride: cleanOverride(cureDeltaOverride)})}
+    })} : {}),
+  }
+}
 
 export function decode(raw) {
   try {
@@ -31,7 +54,7 @@ export function decode(raw) {
     if (backup.scenarios !== undefined && !Array.isArray(backup.scenarios)) return undefined
     const scenarios = backup.scenarios === undefined ? [] : decodeScenarios(backup.scenarios)
     if (backup.scenarios !== undefined && scenarios.length !== backup.scenarios.length) return undefined
-    return [JSON.stringify(backup.people), backup.tolerance, JSON.stringify(scenarios)]
+    return [JSON.stringify(backup.people.map(cleanPerson)), backup.tolerance, JSON.stringify(scenarios)]
   } catch {
     return undefined
   }

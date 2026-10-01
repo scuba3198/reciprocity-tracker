@@ -5,7 +5,7 @@ Good Faith tracks reciprocal choices between the user and each person they inter
 ## Language
 
 **Person**:
-An individual whose reciprocal interactions with the user form one history.
+An individual with one or more independent reciprocal relationship ledgers with the user.
 
 **Round**:
 One recorded interaction with another person. The app's real-world extension allows Request, Unable, and NoAction statuses. A confirmed round contains at least one Cooperated or Defected status, or a Request/Unable pair; NoAction/NoAction is not a valid round. CURE's original game rounds have two C/D moves.
@@ -26,19 +26,25 @@ A choice to withhold cooperation under a clear, meaningful expectation. Inabilit
 The date an interaction is complete or resolved. It determines the interaction's place in the history; events completed on the same date retain their confirmation order.
 
 **Confirmation**:
-The act of adding a completed interaction to a person's history. Undo removes the most recently confirmed interaction.
+The act of adding a completed interaction to a ledger's history. Undo removes the most recently confirmed interaction.
 
 **History**:
-The confirmed interactions for one person, ordered by completion date and then confirmation order. An interaction can be corrected or removed, and later CURE results are recalculated.
+The confirmed interactions for one ledger, ordered by completion date and then confirmation order. An interaction can be corrected or removed, and later CURE results are recalculated.
 
 **Historical recommendation**:
 CURE's retrospective recommendation before a confirmed interaction. It is recalculated when earlier interactions are added, edited, or removed; it is not a record of advice shown at the time.
 
 **Draft**:
-A provisional interaction record. It does not enter the person's history or affect advice until confirmed.
+A provisional interaction record. It does not enter the ledger's history or affect advice until confirmed.
 
 **Category**:
-An optional label for the context of a round. It does not divide a person's CURE history.
+An optional label for the context of a round. It labels entries within a ledger and does not divide its CURE history.
 
 **CURE**:
-A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one, two, or three; default three); otherwise it recommends withholding cooperation. Request, Unable, and NoAction add no defection; each defection has equal weight regardless of stakes.
+A cumulative reciprocity strategy where d is their total defections minus yours. Its strategic moves remain C/D: Cooperated and Defected. It recommends cooperation when d is at most the chosen tolerance (one, two, or three; default two); otherwise it recommends withholding cooperation. Request, Unable, and NoAction add no defection; each defection has equal weight regardless of stakes.
+
+**Ledger**:
+An independent reciprocal arrangement with one person, with its own confirmed history, drafts, and cumulative defection balance. Every person starts with a General ledger; additional ledgers may represent Dishes, Money, or Favors. Balances are never combined across ledgers.
+
+**CURE tolerance**:
+The explicit user-selected maximum defection imbalance allowed before recommending defection: Guarded (Δ1), Balanced (Δ2), or Forgiving (Δ3). Balanced is the general app default. A ledger's override takes precedence over a person's override, then the app default. Inheriting values follow changes to their source; changing tolerance never changes historical actions or cumulative counts.

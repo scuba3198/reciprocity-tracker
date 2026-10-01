@@ -62,8 +62,8 @@ export function initialScenarios(cloud, local) {
 
 export const missingScenariosColumn = error => ['42703', 'PGRST204'].includes(error?.code) && error.message?.includes('scenarios')
 
-export const accountTolerance = (user, fallback = 3) => [1, 2, 3].includes(user?.user_metadata?.cure_tolerance)
-  ? user.user_metadata.cure_tolerance : [1, 2, 3].includes(fallback) ? fallback : 3
+export const accountTolerance = (user, fallback = 2) => [1, 2, 3].includes(user?.user_metadata?.cure_tolerance)
+  ? user.user_metadata.cure_tolerance : [1, 2, 3].includes(fallback) ? fallback : 2
 
 export function subscribe(callback) {
   let previousUserId

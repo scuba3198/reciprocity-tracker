@@ -43,6 +43,9 @@ let navIcon = kind => {
 let make = () => {
   let (people, setPeople) = React.useState(_ => [])
   let (selectedId, setSelectedId) = React.useState(_ => "")
+  let (selectedLedgerId, setSelectedLedgerId) = React.useState(_ => "")
+  let (newLedgerName, setNewLedgerName) = React.useState(_ => "")
+  let (newLedgerTolerance, setNewLedgerTolerance) = React.useState(_ => "")
   let (newName, setNewName) = React.useState(_ => "")
   let (note, setNote) = React.useState(_ => "")
   let (category, setCategory) = React.useState(_ => "")
@@ -101,7 +104,7 @@ let make = () => {
   let (toleranceBusy, setToleranceBusy) = React.useState(_ => false)
   let (toleranceError, setToleranceError) = React.useState(_ => "")
   let (backupPeople, setBackupPeople) = React.useState(_ => [])
-  let (backupTolerance, setBackupTolerance) = React.useState(_ => 3)
+  let (backupTolerance, setBackupTolerance) = React.useState(_ => 2)
   let (backupScenarios, setBackupScenarios) = React.useState(_ => [])
   let (backupPreview, setBackupPreview) = React.useState(_ => false)
   let (backupError, setBackupError) = React.useState(_ => "")
@@ -275,6 +278,12 @@ let make = () => {
   }
 
   let selected = Belt.Array.getBy(people, person => person.id == selectedId)
+  let commitLedger = (person: State.person, change) => commit(people->Array.map(item => item.id == person.id ? State.updateLedger(item, selectedLedgerId, change) : item))
+  let saveOverride = next => {
+    setToleranceError(_ => "")
+    commit(next)->Promise.then(saved => {if !saved {setToleranceError(_ => "Could not save CURE tolerance. Retry when ready.")}; Promise.resolve(())})->ignore
+  }
+  let toleranceOptions = () => [1, 2, 3]->Array.map(choice => <option key={Int.toString(choice)} value={Int.toString(choice)}>{React.string(State.toleranceLabel(choice))}</option>)->React.array
   let calendar = getCalendarMonth(monthKey)
 
   let openCalendar = (target, value) => {
@@ -500,6 +509,7 @@ let make = () => {
   }
 
   let openPerson = (person: State.person) => {
+    setSelectedLedgerId(_ => "")
     setEditingEntryIndex(_ => -1)
     setEntryEditError(_ => "")
     setSelectedId(_ => person.id)
@@ -517,6 +527,7 @@ let make = () => {
   }
 
   let createPerson = name => {
+    setSelectedLedgerId(_ => "")
     let person: State.person = {id: Storage.randomUUID(), name, entries: [], drafts: []}
     commit(Array.concat(people, [person]))->ignore
     setSelectedId(_ => person.id)
@@ -583,23 +594,17 @@ let make = () => {
       myMove,
       note, date: interactionDate, category, myActionDate, theirActionDate,
     }
-    commit(people->Array.map(item => {
-      if item.id == person.id {
+    commitLedger(person, item => {
         let exists = item.drafts->Array.some(existing => existing.id == draft.id)
         let drafts = item.drafts->Array.map(existing => existing.id == draft.id ? draft : existing)
         {...item, drafts: exists ? drafts : Array.concat(drafts, [draft])}
-      } else {
-        item
-      }
-    }))->ignore
+    })->ignore
     setDateError(_ => "")
     setActionDateError(_ => "")
   }
 
   let discardDraft = (person: State.person) => {
-    commit(people->Array.map(item => item.id == person.id
-      ? {...item, drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
-      : item))->ignore
+    commitLedger(person, item => {...item, drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)})->ignore
     startNewDraft()
   }
 
@@ -616,9 +621,7 @@ let make = () => {
         switch (mineDate, theirsDate) {
         | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
             let entry: State.entry = {move: theirs, myMove: mine, note: note->String.trim, category, date, myActionDate, theirActionDate}
-            commit(people->Array.map(item => item.id == person.id
-              ? {...item, entries: Array.concat(item.entries, [entry]), drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)}
-              : item))->ignore
+            commitLedger(person, item => {...item, entries: Array.concat(item.entries, [entry]), drafts: item.drafts->Array.filter(draft => draft.id != currentDraftId)})->ignore
             startNewDraft()
             setCategoryOpen(_ => false)
             setActionDateError(_ => "")
@@ -659,9 +662,7 @@ let make = () => {
         switch (mineDate, theirsDate) {
         | (Some(myActionDate), Some(theirActionDate)) if (myActionDate == "" || myActionDate <= date) && (theirActionDate == "" || theirActionDate <= date) => {
             let replacement: State.entry = {move, myMove, date, myActionDate, theirActionDate, note: editNote->String.trim, category: editCategory}
-            commit(people->Array.map(item => item.id == person.id
-              ? {...item, entries: State.replaceEntry(item.entries, editingEntryIndex, replacement)}
-              : item))->ignore
+            commitLedger(person, item => {...item, entries: State.replaceEntry(item.entries, editingEntryIndex, replacement)})->ignore
             setEditingEntryIndex(_ => -1)
             setEntryEditError(_ => "")
           }
@@ -686,9 +687,7 @@ let make = () => {
     let length = Array.length(person.entries)
     if length > 0 {
       setEditingEntryIndex(_ => -1)
-      commit(people->Array.map(item => item.id == person.id
-        ? {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)}
-        : item))->ignore
+      commitLedger(person, item => {...item, entries: item.entries->Array.filterWithIndex((_, index) => index < length - 1)})->ignore
     }
   }
 
@@ -812,10 +811,14 @@ let make = () => {
             {syncError != "" ? <div className="account-error" role="alert"><p>{React.string(syncError)}</p><button type_="button" disabled={userId == "" || syncing} onClick={_ => retrySync()}>{React.string(cloudReady ? "Retry sync" : "Retry loading")}</button></div> : React.null}
           </section>
           <section className="settings-section" ariaLabel="CURE tolerance">
-            <h2>{React.string("CURE tolerance")}</h2><p>{React.string("Choose how many points of difference CURE allows before recommending a response.")}</p>
+            <h2>{React.string("CURE Strategy")}</h2>
+            <p>{React.string("Default tolerance: " ++ State.toleranceLabel(tolerance))}</p>
+            <p>{React.string("CURE tolerance controls how much cumulative unilateral defection is tolerated before retaliation. Δ1 is more guarded. Δ2 balances protection and forgiveness. Δ3 is more forgiving. Different environments favor different tolerance levels, so individual people and ledgers can override this default.")}</p>
+            <p>{React.string("Balanced tolerates up to two outstanding unilateral defections before retaliation. It is the default for general repeated interactions.")}</p>
             <div className="theme-options tolerance-options" role="group" ariaLabel="CURE tolerance">
-              {[1, 2, 3]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)->ignore}>{React.string(Int.toString(choice))}</button>)->React.array}
+              {[1, 2, 3]->Array.map(choice => <button key={Int.toString(choice)} type_="button" disabled={toleranceBusy || !cloudReady} ariaPressed={tolerance == choice ? #"true" : #"false"} className={tolerance == choice ? "selected" : ""} onClick={_ => chooseTolerance(choice)->ignore}>{React.string(State.toleranceLabel(choice))}</button>)->React.array}
             </div>
+            {[1, 2, 3]->Array.map(choice => <p key={Int.toString(choice)}>{React.string(State.toleranceLabel(choice) ++ ": " ++ State.toleranceHelp(choice))}</p>)->React.array}
             {toleranceBusy ? <p role="status">{React.string("Saving tolerance…")}</p> : React.null}
             {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
           </section>
@@ -851,10 +854,11 @@ let make = () => {
         <section className="insights-page">
           <h1>{React.string("Insights")}</h1>
           <p>{React.string("A compact view of what you recorded. The difference is their cumulative defections minus yours, not a relationship score.")}</p>
-          <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{sortedPeople->Array.map(person => {
-            let decision = State.next(person.entries, ~tolerance)
-            <tr key={person.id}><th scope="row"><button type_="button" onClick={_ => openPerson(person)}>{React.string(person.name)}</button></th><td>{React.string(Int.toString(Array.length(person.entries)))}</td><td>{React.string(Int.toString(decision.difference))}</td><td>{React.string(nextLabel(decision.move))}</td></tr>
-          })->React.array}</tbody></table></div>
+          <div className="insights-table-wrap"><table><thead><tr><th scope="col">{React.string("Person / Ledger")}</th><th scope="col">{React.string("Interactions")}</th><th scope="col">{React.string("Difference")}</th><th scope="col">{React.string("Tolerance")}</th><th scope="col">{React.string("CURE suggests")}</th></tr></thead><tbody>{sortedPeople->Array.flatMap(person => person->State.allLedgers->Array.map(ledger => {
+            let effective = State.effectiveTolerance(tolerance, person.cureDeltaOverride, ledger.cureDeltaOverride)
+            let decision = State.next(ledger.entries, ~tolerance=effective)
+            <tr key={person.id ++ ":" ++ ledger.id}><th scope="row"><button type_="button" onClick={_ => {openPerson(person); setSelectedLedgerId(_ => ledger.id); switch ledger.drafts->Array.get(0) { | Some(draft) => loadDraft(draft) | None => startNewDraft() }}}>{React.string(person.name ++ " / " ++ ledger.name)}</button></th><td>{React.string(Int.toString(Array.length(ledger.entries)))}</td><td>{React.string(Int.toString(decision.difference))}</td><td>{React.string(State.toleranceLabel(effective))}</td><td>{React.string(nextLabel(decision.move))}</td></tr>
+          }))->React.array}</tbody></table></div>
           {Array.length(people) == 0 ? <p>{React.string("Add a person to start seeing your record here.")}</p> : React.null}
         </section>
       } else if showDashboard {
@@ -874,13 +878,29 @@ let make = () => {
               <div className="ledger-person-list">{sortedPeople->Array.map(person => {
                 let count = Array.length(person.entries)
                 <button key={person.id} type_="button" onClick={_ => openPerson(person)} ariaLabel={"Open " ++ person.name ++ "'s ledger"}>
-                  <span><strong>{React.string(person.name)}</strong><small>{React.string(Int.toString(count) ++ (count == 1 ? " interaction" : " interactions"))}</small></span>
-                  <span>{React.string("CURE: " ++ nextLabel(State.next(person.entries, ~tolerance).move))}</span>
+                  <span><strong>{React.string(person.name)}</strong><small>{React.string(Int.toString(count) ++ (count == 1 ? " General interaction" : " General interactions"))}</small></span>
+                  <span>{React.string("General CURE: " ++ nextLabel(State.next(person.entries, ~tolerance=State.effectiveTolerance(tolerance, person.cureDeltaOverride, person.generalCureDeltaOverride)).move))}</span>
                   <span ariaHidden=true>{React.string("›")}</span>
                 </button>
               })->React.array}</div>
             </section>
-      | Some(person) => {
+      | Some(owner) => {
+          let appTolerance = tolerance
+          let ledgers = owner.ledgers->Option.getOr([])
+          let activeLedger = ledgers->Array.find(ledger => ledger.id == selectedLedgerId)
+          let person = State.ledgerView(owner, selectedLedgerId)
+          let inherited = State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, None)
+          let ledgerOverride = switch activeLedger { | Some(ledger) => ledger.cureDeltaOverride | None => owner.generalCureDeltaOverride }
+          let tolerance = State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, ledgerOverride)
+          let ledgerName = switch activeLedger { | Some(ledger) => ledger.name | None => "General" }
+          let inheritanceLabel = owner.cureDeltaOverride == None ? "Inherit from app default: " : "Inherit from " ++ owner.name ++ ": "
+          let switchLedger = id => {
+            setSelectedLedgerId(_ => id)
+            setEditingEntryIndex(_ => -1)
+            setEntryEditError(_ => "")
+            let view = State.ledgerView(owner, id)
+            switch view.drafts->Array.get(0) { | Some(draft) => loadDraft(draft) | None => startNewDraft() }
+          }
           let decision = State.next(person.entries, ~tolerance)
           let count = Array.length(person.entries)
           let history = State.history(person.entries, ~tolerance)->Belt.Array.reverse
@@ -912,13 +932,53 @@ let make = () => {
                 </section>
               : React.null}
 
+            <section className="cure-settings" ariaLabel="Person and ledger settings">
+              <label htmlFor="person-tolerance">{React.string("Person CURE tolerance")}</label>
+              <select id="person-tolerance" disabled={!cloudReady || syncing} value={switch owner.cureDeltaOverride { | Some(value) => Int.toString(value) | None => "" }} onChange={event => {
+                let choice = State.toleranceFromChoice(JsxEvent.Form.target(event)["value"])
+                saveOverride(people->Array.map(item => item.id == owner.id ? {...item, cureDeltaOverride: ?choice} : item))
+              }}><option value="">{React.string("Use app default: " ++ State.toleranceLabel(appTolerance))}</option>{toleranceOptions()}</select>
+              <p>{React.string(State.toleranceLabel(inherited) ++ (owner.cureDeltaOverride == None ? " · Inherited from app default" : " · Custom for this person"))}</p>
+              <label htmlFor="active-ledger">{React.string("Ledger")}</label>
+              <select id="active-ledger" value={selectedLedgerId} onChange={event => switchLedger(JsxEvent.Form.target(event)["value"])}>
+                <option value="">{React.string("General · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, owner.generalCureDeltaOverride)))}</option>
+                {ledgers->Array.map(ledger => <option key={ledger.id} value={ledger.id}>{React.string(ledger.name ++ " · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, ledger.cureDeltaOverride)))}</option>)->React.array}
+              </select>
+              <details><summary>{React.string("Create another ledger")}</summary>
+                <form className="new-ledger-form" ariaLabel="Create ledger" onSubmit={event => {
+                  ReactEvent.Form.preventDefault(event)
+                  if newLedgerName->String.trim != "" {
+                    setToleranceError(_ => "")
+                    let id = Storage.randomUUID()
+                    let ledger: State.ledger = {id, name: newLedgerName->String.trim, entries: [], drafts: [], cureDeltaOverride: ?State.toleranceFromChoice(newLedgerTolerance)}
+                    commit(people->Array.map(item => item.id == owner.id ? {...item, ledgers: Array.concat(ledgers, [ledger])} : item))
+                    ->Promise.then(saved => {if saved {setSelectedLedgerId(_ => id); setNewLedgerName(_ => ""); setNewLedgerTolerance(_ => ""); setEditingEntryIndex(_ => -1); startNewDraft()} else {setToleranceError(_ => "Could not save the new ledger. Retry when ready.")}; Promise.resolve(())})->ignore
+                  }
+                }}>
+                  <label htmlFor="new-ledger-name">{React.string("New ledger name")}</label>
+                  <input id="new-ledger-name" value={newLedgerName} maxLength=60 placeholder="Dishes, Money, Favors…" onChange={event => setNewLedgerName(_ => JsxEvent.Form.target(event)["value"])} />
+                  <label htmlFor="new-ledger-tolerance">{React.string("CURE tolerance")}</label>
+                  <select id="new-ledger-tolerance" value={newLedgerTolerance} onChange={event => setNewLedgerTolerance(_ => JsxEvent.Form.target(event)["value"])}><option value="">{React.string("Use inherited setting: " ++ State.toleranceLabel(inherited))}</option>{toleranceOptions()}</select>
+                  <button type_="submit" disabled={!cloudReady || syncing || newLedgerName->String.trim == ""}>{React.string("Create ledger")}</button>
+                </form>
+              </details>
+            </section>
+
             <section className={"decision-panel " ++ decisionClass(decision)} ariaLabel="Suggested next move">
               <div className="decision-copy">
                 <h2>{React.string("CURE suggests")}</h2>
                 <p className="decision-action">{React.string(decisionLabel(decision))}</p>
                 <p>{React.string(decision.explanation)}</p>
               </div>
-              <p className="decision-rule">{React.string(decision.rule)}</p>
+              <p className="decision-rule">{React.string(ledgerName ++ " · Balance: " ++ Int.toString(decision.difference))}</p>
+              <label htmlFor="ledger-tolerance">{React.string("CURE tolerance: " ++ State.toleranceLabel(tolerance))}</label>
+              <select id="ledger-tolerance" disabled={!cloudReady || syncing} value={switch ledgerOverride { | Some(value) => Int.toString(value) | None => "" }} onChange={event => {
+                let choice = State.toleranceFromChoice(JsxEvent.Form.target(event)["value"])
+                saveOverride(people->Array.map(item => item.id != owner.id ? item : selectedLedgerId == "" ? {...item, generalCureDeltaOverride: ?choice} : {...item, ledgers: ledgers->Array.map(ledger => ledger.id == selectedLedgerId ? {...ledger, cureDeltaOverride: ?choice} : ledger)}))
+              }}><option value="">{React.string(inheritanceLabel ++ State.toleranceLabel(inherited))}</option>{toleranceOptions()}</select>
+              <p>{React.string(ledgerOverride == None ? inheritanceLabel ++ State.toleranceLabel(inherited) : "Custom for this ledger")}</p>
+              <details><summary>{React.string("About CURE tolerance")}</summary><p>{React.string("Δ is the amount of outstanding defection imbalance CURE tolerates before responding with defection. Guarded Δ1: faster response to imbalance. Balanced Δ2: middle-ground default. Forgiving Δ3: more tolerance for mistakes and temporary imbalance. Changing tolerance keeps all history intact. You control this setting; it never changes automatically.")}</p></details>
+              {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
               <button type_="button" className="decision-think-ahead" onClick={_ => thinkThrough(person, decision.move)}>{React.string("Think this decision through")}</button>
             </section>
 

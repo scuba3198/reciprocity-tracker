@@ -8,8 +8,8 @@ test('account tolerance takes precedence and an unset account can inherit the br
   assert.equal(accountTolerance({user_metadata: {cure_tolerance: 3}}, 1), 3)
   assert.equal(accountTolerance({user_metadata: {}}, 1), 1)
   assert.equal(accountTolerance({user_metadata: {}}, 2), 2)
-  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 9}}, 9), 3)
-  assert.equal(accountTolerance({user_metadata: {}}), 3)
+  assert.equal(accountTolerance({user_metadata: {cure_tolerance: 9}}, 9), 2)
+  assert.equal(accountTolerance({user_metadata: {}}), 2)
 })
 
 test('cloud CURE tolerance rejects unsupported values before making an auth request', async () => {
@@ -21,6 +21,9 @@ test('first sign-in copies local data only when cloud is empty and queues writes
   const cloud = [{id: 'cloud'}]
   assert.deepEqual(initialLedger(null, local), {people: local, insert: true})
   assert.deepEqual(initialLedger({people: cloud}, local), {people: cloud, insert: false})
+  const nested = [{id: 'p', name: 'P', entries: [], drafts: [], cureDeltaOverride: 3, generalCureDeltaOverride: 1,
+    ledgers: [{id: 'dishes', name: 'Dishes', entries: [{move: 'Defect'}], drafts: [], cureDeltaOverride: 2}]}]
+  assert.deepEqual(guestSeed(JSON.stringify(nested)), nested)
 
   const order = []
   await Promise.all([

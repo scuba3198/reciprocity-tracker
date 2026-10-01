@@ -93,7 +93,14 @@ input::placeholder { color: var(--muted) !important; opacity: .72; }
 .settings-section .account-body .backup-file-button { display: grid; place-items: center; min-height: 40px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-soft); color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; }
 .settings-section .account-body .backup-file-input:focus-visible + .backup-file-button { outline: 2px solid var(--green); outline-offset: 2px; }
 .settings-section .account-body .backup-file-input:disabled + .backup-file-button { opacity: .5; cursor: not-allowed; }
-.settings-section .tolerance-options { max-width: 180px; }
+.settings-section .tolerance-options { max-width: 540px; flex-wrap: wrap; }
+.cure-settings { display: grid; gap: 10px; margin: 20px 0; }
+.cure-settings label, .decision-panel label { font-weight: 600; }
+.cure-settings select, .cure-settings input, .decision-panel select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+.cure-settings p { margin: 0; color: var(--muted); }
+.new-ledger-form { display: grid; gap: 10px; padding-top: 12px; }
+.decision-panel details { margin: 12px 0; }
+.dashboard-ledger-tolerances { display: grid; grid-column: 1 / -1; grid-row: 3; gap: 4px; color: var(--muted); }
 .settings-info-link { min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--green); font-size: 13px; font-weight: 700; cursor: pointer; }
 .detail { max-width: 1040px; padding: 52px clamp(24px, 5vw, 70px) 100px; }
 .detail-heading { margin-bottom: 28px; }

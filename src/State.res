@@ -2,7 +2,8 @@ type move = Cooperate | Defect
 type action = Cooperated | Defected | Requested | Unable | NoAction
 type entry = {move: action, myMove: action, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
 type draft = {id: string, move: string, myMove: string, note: string, date: string, category: string, myActionDate: string, theirActionDate: string}
-type person = {id: string, name: string, entries: array<entry>, drafts: array<draft>}
+type ledger = {id: string, name: string, entries: array<entry>, drafts: array<draft>, cureDeltaOverride?: int}
+type person = {id: string, name: string, entries: array<entry>, drafts: array<draft>, cureDeltaOverride?: int, generalCureDeltaOverride?: int, ledgers?: array<ledger>}
 type historyItem = {entry: entry, recommended: move, differenceBefore: int, sourceIndex: int}
 type indexedEntry = {entry: entry, sourceIndex: int}
 type decision = {move: move, rule: string, explanation: string, difference: int}
@@ -35,18 +36,61 @@ let validChoices = (mine, theirs) => {
   chosen(mine) && chosen(theirs) && (acted(mine) || acted(theirs) || (mine == "Request" && theirs == "Unable") || (mine == "Unable" && theirs == "Request"))
 }
 
-let decide = (difference, tolerance) => {
-  let rule = "CURE · difference " ++ Int.toString(difference) ++ " · tolerance " ++ Int.toString(tolerance)
-  if difference <= tolerance {
-    {move: Cooperate, rule, explanation: "The cumulative defection difference is within your tolerance. Cooperate.", difference}
-  } else {
-    {move: Defect, rule, explanation: "Their cumulative defections exceed yours by more than " ++ Int.toString(tolerance) ++ ". Withhold until the difference falls to " ++ Int.toString(tolerance) ++ " or less.", difference}
+let effectiveTolerance = (global: int, personOverride: option<int>, ledgerOverride: option<int>) =>
+  switch (ledgerOverride, personOverride) {
+  | (Some(value), _) when value >= 1 && value <= 3 => value
+  | (_, Some(value)) when value >= 1 && value <= 3 => value
+  | _ when global >= 1 && global <= 3 => global
+  | _ => 2
+  }
+
+let toleranceName = tolerance => switch tolerance { | 1 => "Guarded" | 3 => "Forgiving" | _ => "Balanced" }
+let toleranceLabel = tolerance => toleranceName(tolerance) ++ " (Δ" ++ Int.toString(tolerance) ++ ")"
+let toleranceHelp = tolerance => switch tolerance {
+| 1 => "Responds sooner to persistent imbalance. Better suited to short, uncertain, or exploitation-prone interactions."
+| 3 => "Allows more temporary imbalance before retaliation. Better suited to long-term or noisy relationships where mistakes and misunderstandings are common."
+| _ => "Balances exploitation resistance with forgiveness. Recommended as the general default for repeated interactions."
+}
+let toleranceFromChoice = choice => switch choice { | "1" => Some(1) | "2" => Some(2) | "3" => Some(3) | _ => None }
+
+let ledgerView = (person: person, ledgerId: string): person => switch ledgerId {
+| "" => person
+| id => switch person.ledgers->Option.getOr([])->Array.find(ledger => ledger.id == id) {
+  | Some(ledger) => {...person, entries: ledger.entries, drafts: ledger.drafts}
+  | None => {...person, entries: [], drafts: []}
   }
 }
 
-let next = (entries: array<entry>, ~tolerance=3) => decide(entries->orderedEntries->Array.reduce(0, update), tolerance)
+let allLedgers = (person: person): array<ledger> => {
+  let general: ledger = {
+    id: "", name: "General", entries: person.entries, drafts: person.drafts,
+    cureDeltaOverride: ?person.generalCureDeltaOverride,
+  }
+  [general, ...person.ledgers->Option.getOr([])]
+}
 
-let history = (entries: array<entry>, ~tolerance=3): array<historyItem> => {
+let updateLedger = (person: person, ledgerId: string, change: person => person): person => switch ledgerId {
+| "" => change(person)
+| id => {
+    let changed = change(ledgerView(person, id))
+    {...person, ledgers: ?Some(person.ledgers->Option.getOr([])->Array.map(ledger =>
+      {...ledger, entries: ledger.id == id ? changed.entries : ledger.entries, drafts: ledger.id == id ? changed.drafts : ledger.drafts}))}
+  }
+}
+
+let decide = (difference, tolerance) => {
+  let activeTolerance = toleranceLabel(tolerance)
+  let rule = "CURE · difference " ++ Int.toString(difference) ++ " · " ++ activeTolerance
+  if difference <= tolerance {
+    {move: Cooperate, rule, explanation: "The other person's cumulative defection advantage is " ++ Int.toString(difference) ++ ". Your " ++ toleranceName(tolerance) ++ " tolerance allows an imbalance of up to " ++ Int.toString(tolerance) ++ ".", difference}
+  } else {
+    {move: Defect, rule, explanation: "The other person's cumulative defection advantage is " ++ Int.toString(difference) ++ ". This exceeds your " ++ toleranceName(tolerance) ++ " tolerance of " ++ Int.toString(tolerance) ++ ".", difference}
+  }
+}
+
+let next = (entries: array<entry>, ~tolerance=2) => decide(entries->orderedEntries->Array.reduce(0, update), tolerance)
+
+let history = (entries: array<entry>, ~tolerance=2): array<historyItem> => {
   let difference = ref(0)
   entries->orderedIndexedEntries->Array.map(({entry, sourceIndex}) => {
     let before = difference.contents

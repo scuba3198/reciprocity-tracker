@@ -8,7 +8,7 @@ let initials = (name: string) => {
 }
 
 let countLabel = (count, singular, plural) => Int.toString(count) ++ " " ++ (count == 1 ? singular : plural)
-type recentItem = {person: State.person, entry: State.entry}
+type recentItem = {person: State.person, entry: State.entry, ledgerName: string}
 @send external sortRecent: (array<recentItem>, (recentItem, recentItem) => float) => array<recentItem> = "sort"
 
 let trendPoints = (entries: array<State.entry>) =>
@@ -32,8 +32,8 @@ let trendPath = (points: array<int>) => {
 @react.component
 let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.person => unit, ~onSeeAll: unit => unit, ~onAdd: unit => unit, ~onLearn: unit => unit) => {
   let recent: array<recentItem> = people->Array.reduce([], (items, person) => {
-    let history = person.entries->State.history->Belt.Array.reverse
-    Array.concat(items, history->Array.map(item => {person, entry: item.entry}))
+    person->State.allLedgers->Array.reduce(items, (items, ledger) =>
+      Array.concat(items, ledger.entries->Array.map(entry => {person, entry, ledgerName: ledger.name})))
   })
   let recent = sortRecent(recent, (a, b) => String.compare(b.entry.date, a.entry.date))->Array.filterWithIndex((_, index) => index < 6)
   <div className="dashboard">
@@ -56,15 +56,18 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
       {Array.length(people) == 0
         ? <div className="dashboard-empty"><p>{React.string("Your people will find a home here.")}</p><button type_="button" onClick={_ => onAdd()}>{React.string("Add your first person →")}</button></div>
         : <div className="dashboard-people-rail">{people->Array.map(person => {
+            let appTolerance = tolerance
+            let tolerance = State.effectiveTolerance(appTolerance, person.cureDeltaOverride, person.generalCureDeltaOverride)
             let decision = State.next(person.entries, ~tolerance)
             let count = Array.length(person.entries)
             let points = trendPoints(person.entries)
             let trendColor = decision.difference <= tolerance ? "#3e9366" : "#c76e55"
             <button key={person.id} type_="button" className="dashboard-person-card" onClick={_ => onSelect(person)} ariaLabel={"Open " ++ person.name}>
               <span className="dashboard-avatar" ariaHidden=true>{React.string(initials(person.name))}</span>
-              <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "interaction", "interactions"))}</small></span>
+              <span className="dashboard-person-info"><strong>{React.string(person.name)}</strong><small>{React.string(countLabel(count, "General interaction", "General interactions"))}</small></span>
               {count == 0 ? React.null : <svg className="dashboard-trend" viewBox="0 0 60 24" role="img" ariaLabel={"Defection difference over " ++ Int.toString(count) ++ " recorded interactions; upward means more of your defections relative to theirs"}><polyline points={trendPath(points)} fill="none" stroke={trendColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              <span className={decision.difference > tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("difference")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
+              <span className="dashboard-ledger-tolerances">{person->State.allLedgers->Array.map(ledger => <small key={ledger.id}>{React.string(ledger.name ++ " · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, person.cureDeltaOverride, ledger.cureDeltaOverride)))}</small>)->React.array}</span>
+              <span className={decision.difference > tolerance ? "dashboard-difference caution" : "dashboard-difference"}><small>{React.string("General balance")}</small><strong>{React.string(Int.toString(decision.difference))}</strong></span>
             </button>
           })->React.array}</div>}
     </section>
@@ -75,7 +78,7 @@ let make = (~people: array<State.person>, ~tolerance: int, ~onSelect: State.pers
         ? <p className="dashboard-activity-empty">{React.string("Interactions you record will appear here.")}</p>
         : <ol className="dashboard-activity-list">{recent->Array.mapWithIndex((item, index) => <li key={item.person.id ++ item.entry.date ++ Int.toString(index)}>
               <span className={item.entry.move == State.Cooperated ? "dashboard-activity-mark cooperate" : item.entry.move == State.Defected ? "dashboard-activity-mark defect" : "dashboard-activity-mark"}>{React.string(switch item.entry.move { | State.Cooperated => "C" | State.Defected => "D" | State.Requested => "R" | State.Unable => "U" | State.NoAction => "Ø" })}</span>
-              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name)}</strong><small>{React.string("Them: " ++ State.actionLabel(item.entry.move) ++ " · You: " ++ State.actionLabel(item.entry.myMove) ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
+              <span className="dashboard-activity-copy"><strong>{React.string(item.person.name ++ " / " ++ item.ledgerName)}</strong><small>{React.string("Them: " ++ State.actionLabel(item.entry.move) ++ " · You: " ++ State.actionLabel(item.entry.myMove) ++ (item.entry.category == "" ? "" : " · " ++ item.entry.category) ++ (item.entry.note == "" ? "" : " · " ++ item.entry.note))}</small></span>
               <time>{React.string(item.entry.date)}</time>
             </li>)->React.array}</ol>}
     </section>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation} from '../src/State.res.mjs'
+import {next, orderedEntries, history, replaceEntry, validChoices, actionFromChoice, choiceFromAction, differentFromRecommendation, effectiveTolerance, toleranceName, toleranceLabel, toleranceHelp, toleranceFromChoice, ledgerView, updateLedger, allLedgers} from '../src/State.res.mjs'
 import {load, save, loadTolerance, saveTolerance, decodeBackup, serialize} from '../src/Storage.res.mjs'
 import {calendarMonth, normalize, today} from '../src/InteractionDate.js'
 import {trendPath} from '../src/Dashboard.res.mjs'
@@ -8,6 +8,7 @@ import {readFile} from '../src/LocalBackup.js'
 
 const action = value => ({Cooperate: 'Cooperated', Defect: 'Defected', Request: 'Requested', Unable: 'Unable', NoAction: 'NoAction'})[value]
 const entry = (mine, theirs, date, category = '') => ({myMove: action(mine), move: action(theirs), note: '', date, category, myActionDate: '', theirActionDate: ''})
+const plain = value => JSON.parse(JSON.stringify(value))
 
 test('dashboard line rises when the defection difference decreases', () => {
   assert.equal(trendPath([0, 1, 0]), '0,4 30,20 60,4')
@@ -53,6 +54,9 @@ test('CURE uses their total defections minus yours with inclusive tolerance 1', 
   assert.deepEqual(next([breach, {...repeated, myActionDate: '2024-03-01', theirActionDate: '2024-03-01'}]), next([breach, repeated]))
   assert.equal(next([entry('Defect', 'Cooperate', '2024-03-01')]).move, 'Cooperate')
   assert.equal(next([entry('Defect', 'Defect', '2024-03-01')]).difference, 0)
+  for (const [imbalance, tolerance, result] of [[0, 2, 'Cooperate'], [1, 2, 'Cooperate'], [2, 2, 'Cooperate'], [3, 2, 'Defect'], [1, 1, 'Cooperate'], [2, 1, 'Defect'], [3, 3, 'Cooperate'], [4, 3, 'Defect']]) {
+    assert.equal(next(Array.from({length: imbalance}, (_, index) => entry('Cooperate', 'Defect', `2024-03-${String(index + 1).padStart(2, '0')}`)), tolerance).move, result)
+  }
 })
 
 test('switching CURE tolerance recalculates current and historical recommendations', () => {
@@ -67,35 +71,81 @@ test('switching CURE tolerance recalculates current and historical recommendatio
   assert.equal(next(breaches.slice(0, 2)).move, 'Cooperate')
   assert.equal(next(breaches.slice(0, 3), 2).move, 'Defect')
   assert.equal(next(breaches.slice(0, 3), 3).move, 'Cooperate')
-  assert.equal(next(breaches.slice(0, 3)).move, 'Cooperate')
+  assert.equal(next(breaches.slice(0, 3)).move, 'Defect')
   assert.equal(next(breaches, 3).move, 'Defect')
   assert.equal(next(breaches).move, 'Defect')
   assert.equal(history(breaches, 1)[2].recommended, 'Defect')
   assert.equal(history(breaches, 2)[2].recommended, 'Cooperate')
   assert.equal(history(breaches, 2)[3].recommended, 'Defect')
   assert.equal(history(breaches, 3)[3].recommended, 'Cooperate')
-  assert.equal(history(breaches)[3].recommended, 'Cooperate')
-  assert.match(next(breaches, 3).explanation, /more than 3/)
+  assert.equal(history(breaches)[2].recommended, 'Cooperate')
+  assert.equal(history(breaches)[3].recommended, 'Defect')
+  assert.match(next(breaches, 3).explanation, /Forgiving tolerance of 3/)
 })
 
-test('CURE tolerance defaults to 3 and persists all selected levels in this browser', () => {
+test('CURE tolerance defaults to Balanced Δ2 and persists all selected levels in this browser', () => {
   let stored = null
   globalThis.localStorage = {
     getItem: key => key === 'good-faith.cure-tolerance' ? stored : null,
     setItem: (key, value) => { assert.equal(key, 'good-faith.cure-tolerance'); stored = value },
   }
   try {
-    assert.equal(loadTolerance(), 3)
+    assert.equal(loadTolerance(), 2)
     for (const choice of [1, 2, 3]) {
       assert.equal(saveTolerance(choice), true)
       assert.equal(loadTolerance(), choice)
     }
     stored = 'invalid'
-    assert.equal(loadTolerance(), 3)
+    assert.equal(loadTolerance(), 2)
     globalThis.localStorage.setItem = () => { throw new Error('storage unavailable') }
     assert.equal(saveTolerance(1), false)
   } finally {
     delete globalThis.localStorage
+  }
+})
+
+test('tolerance inheritance, labels, and General and nested ledgers stay independent', () => {
+  assert.equal(effectiveTolerance(2, undefined, undefined), 2)
+  assert.equal(effectiveTolerance(1, undefined, undefined), 1)
+  assert.equal(effectiveTolerance(3, undefined, undefined), 3)
+  assert.equal(effectiveTolerance(1, 3, 2), 2)
+  assert.equal(effectiveTolerance(1, 3, undefined), 3)
+  assert.equal(effectiveTolerance(2, 3, 1), 1)
+  assert.equal(effectiveTolerance(2, 3, undefined), 3)
+  assert.equal(effectiveTolerance(2, undefined, undefined), 2)
+  assert.equal(effectiveTolerance(9, undefined, undefined), 2)
+  assert.deepEqual([1, 2, 3].map(toleranceName), ['Guarded', 'Balanced', 'Forgiving'])
+  assert.equal(toleranceLabel(2), 'Balanced (Δ2)')
+  assert.match(toleranceHelp(2), /general default/)
+  assert.deepEqual(['1', '2', '3', '4'].map(toleranceFromChoice), [1, 2, 3, undefined])
+
+  const generalEntry = entry('Cooperate', 'Defect', '2024-03-01')
+  const ledgerEntry = entry('Defect', 'Cooperate', '2024-03-02')
+  const person = {id: 'p', name: 'P', entries: [generalEntry], drafts: [], cureDeltaOverride: 3, generalCureDeltaOverride: 1,
+    ledgers: [{id: 'l', name: 'Dishes', entries: [ledgerEntry], drafts: [], cureDeltaOverride: 2}]}
+  assert.deepEqual(ledgerView(person, '').entries, [generalEntry])
+  assert.deepEqual(ledgerView(person, 'l').entries, [ledgerEntry])
+  assert.deepEqual(allLedgers(person).map(ledger => [ledger.id, ledger.cureDeltaOverride]), [['', 1], ['l', 2]])
+  const changed = updateLedger(person, 'l', view => ({...view, entries: [], drafts: [{id: 'draft'}]}))
+  assert.deepEqual(changed.entries, [generalEntry])
+  assert.deepEqual(changed.ledgers[0].entries, [])
+  assert.deepEqual(changed.ledgers[0].drafts, [{id: 'draft'}])
+  assert.deepEqual(person.ledgers[0].entries, [ledgerEntry])
+  const changedGeneral = updateLedger(person, '', view => ({...view, entries: []}))
+  assert.deepEqual(changedGeneral.entries, [])
+  assert.deepEqual(changedGeneral.ledgers, person.ledgers)
+  const inheriting = {id: 'i', name: 'I', entries: [], drafts: [], ledgers: [{id: 'inherited', name: 'Inherited', entries: [], drafts: []}]}
+  const explicit = {...inheriting, id: 'e', cureDeltaOverride: 3, ledgers: [{...inheriting.ledgers[0], cureDeltaOverride: 1}]}
+  assert.deepEqual([effectiveTolerance(1, undefined, undefined), effectiveTolerance(3, undefined, undefined)], [1, 3])
+  assert.deepEqual([effectiveTolerance(1, inheriting.cureDeltaOverride, inheriting.ledgers[0].cureDeltaOverride), effectiveTolerance(3, inheriting.cureDeltaOverride, inheriting.ledgers[0].cureDeltaOverride)], [1, 3])
+  assert.deepEqual([effectiveTolerance(1, explicit.cureDeltaOverride, explicit.ledgers[0].cureDeltaOverride), effectiveTolerance(2, explicit.cureDeltaOverride, explicit.ledgers[0].cureDeltaOverride)], [1, 1])
+  const original = [entry('Cooperate', 'Defect', '2024-03-01'), entry('Cooperate', 'Defect', '2024-03-02')]
+  const before = JSON.stringify(original)
+  next(original, 1)
+  history(original, 3)
+  assert.equal(JSON.stringify(original), before)
+  for (const tolerance of [1, 2, 3]) {
+    assert.equal(next([entry('Request', 'Unable', '2024-03-01')], tolerance).difference, 0)
   }
 })
 
@@ -105,12 +155,16 @@ test('local backups accept complete ledgers and reject malformed or partial data
   ]}]
   const backup = {version: 1, people: people.map(person => ({...person, entries: person.entries.map(item => ({...item, move: 'Defect', myMove: 'Cooperate'}))})), tolerance: 1}
   for (const tolerance of [1, 2, 3]) {
-    assert.deepEqual(decodeBackup(JSON.stringify({...backup, tolerance})), [people, tolerance, '[]'])
+    assert.deepEqual(plain(decodeBackup(JSON.stringify({...backup, tolerance}))), [people, tolerance, '[]'])
   }
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], entries: [{...people[0].entries[0], move: 'invalid'}]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...people[0], drafts: [null]}]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, people: [backup.people[0], backup.people[0]]})), undefined)
   assert.equal(decodeBackup(JSON.stringify({...backup, tolerance: 4})), undefined)
+  const nested = {...backup.people[0], ledgers: [{id: 'dishes', name: 'Dishes', entries: backup.people[0].entries, drafts: [], cureDeltaOverride: 3}]}
+  assert.ok(decodeBackup(JSON.stringify({...backup, people: [nested]})))
+  assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...nested, ledgers: [nested.ledgers[0], nested.ledgers[0]]}]})), undefined)
+  assert.equal(decodeBackup(JSON.stringify({...backup, people: [{...nested, ledgers: [{...nested.ledgers[0], cureDeltaOverride: 9}]}]})), undefined)
   assert.equal(decodeBackup('{"version":1,"people":[]}'), undefined)
 })
 
@@ -119,7 +173,7 @@ test('local backup roundtrip preserves raw date text in saved drafts', () => {
     {id: 'draft', move: 'Request', myMove: 'Unable', note: 'still editing', date: '20240928', category: 'Work', myActionDate: '2024092', theirActionDate: ''},
   ]}]
   const backupJSON = JSON.stringify({version: 1, people: JSON.parse(serialize(people)), tolerance: 2})
-  assert.deepEqual(decodeBackup(backupJSON), [people, 2, '[]'])
+  assert.deepEqual(plain(decodeBackup(backupJSON)), [people, 2, '[]'])
 })
 
 test('backup file input resets after capturing the selected file', async () => {
@@ -226,7 +280,7 @@ test('saved ledgers ignore unknown fields and retain CURE history', () => {
     save([person])
     const [serialized] = JSON.parse(stored)
     stored = JSON.stringify([{...serialized, oldAnalysis: {recommendation: 'Defect'}, entries: [{...serialized.entries[0], oldPrediction: 0.75}]}])
-    assert.deepEqual(load(), [person])
+    assert.deepEqual(plain(load()), [person])
     assert.equal(next(load()[0].entries).difference, 1)
     save(load())
     assert.deepEqual(JSON.parse(stored), [serialized])
@@ -292,7 +346,7 @@ test('Request, Unable, and NoAction roundtrip; NoAction/NoAction entries are rej
     assert.equal(JSON.parse(stored)[0].entries[0].myMove, 'Request')
     assert.equal(JSON.parse(stored)[0].entries[1].move, 'Unable')
     assert.equal(JSON.parse(stored)[0].entries[2].move, 'NoAction')
-    assert.deepEqual(load(), people)
+    assert.deepEqual(plain(load()), people)
     const invalidBoth = [{...people[0], entries: [entry('NoAction', 'NoAction', '2024-03-06')]}]
     globalThis.localStorage.getItem = () => JSON.stringify(invalidBoth)
     assert.deepEqual(load(), [])
@@ -316,7 +370,37 @@ test('old C/D entries still load and NoAction backups restore', () => {
     assert.equal(load()[0].entries[0].myMove, 'Cooperated')
     const withNoAction = [{id: 'one', name: 'A person', entries: [entry('Cooperate', 'NoAction', '2024-03-02')], drafts: []}]
     const backup = {version: 1, people: JSON.parse(serialize(withNoAction)), tolerance: 2}
-    assert.deepEqual(decodeBackup(JSON.stringify(backup)), [withNoAction, 2, '[]'])
+    assert.deepEqual(plain(decodeBackup(JSON.stringify(backup))), [withNoAction, 2, '[]'])
+  } finally {
+    delete globalThis.localStorage
+  }
+})
+
+test('nested ledger overrides and histories roundtrip; malformed overrides are ignored without dropping history', () => {
+  const people = [{id: 'p', name: 'P', entries: [entry('Cooperate', 'Defect', '2024-03-01')], drafts: [],
+    cureDeltaOverride: 3, generalCureDeltaOverride: 1,
+    ledgers: [{id: 'l', name: 'Dishes', entries: [entry('Defect', 'Cooperate', '2024-03-02')], drafts: [], cureDeltaOverride: 2}]}]
+  let stored
+  globalThis.localStorage = {getItem: () => stored ?? null, setItem: (_, value) => { stored = value }}
+  try {
+    save(people)
+    assert.deepEqual(plain(load()), people)
+    const damaged = JSON.parse(stored)
+    damaged[0].cureDeltaOverride = 7
+    damaged[0].generalCureDeltaOverride = 'invalid'
+    damaged[0].ledgers[0].cureDeltaOverride = 0
+    stored = JSON.stringify(damaged)
+    const restored = load()[0]
+    assert.equal(restored.cureDeltaOverride, undefined)
+    assert.equal(restored.generalCureDeltaOverride, undefined)
+    assert.equal(restored.ledgers[0].cureDeltaOverride, undefined)
+    assert.equal(restored.entries.length, 1)
+    assert.equal(restored.ledgers[0].entries.length, 1)
+    stored = JSON.stringify([{...people[0], ledgers: [{...people[0].ledgers[0], drafts: 'invalid'}]}])
+    assert.deepEqual(load(), [])
+    damaged[0].ledgers[0].entries[0].move = 'invalid'
+    stored = JSON.stringify(damaged)
+    assert.deepEqual(load(), [])
   } finally {
     delete globalThis.localStorage
   }
@@ -330,7 +414,7 @@ test('request action dates are allowed', () => {
       {...entry('Request', 'Cooperate', '2024-03-02'), myActionDate: '2024-03-01'},
     ], drafts: []}
     save([person])
-    assert.deepEqual(load(), [person])
+    assert.deepEqual(plain(load()), [person])
   } finally {
     delete globalThis.localStorage
   }
