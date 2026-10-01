@@ -85,9 +85,9 @@ let decide = (difference, tolerance) => {
   let activeTolerance = toleranceLabel(tolerance)
   let rule = "CURE · difference " ++ Int.toString(difference) ++ " · " ++ activeTolerance
   if difference <= tolerance {
-    {move: Cooperate, rule, explanation: "The other person's cumulative defection advantage is " ++ Int.toString(difference) ++ ". Your " ++ toleranceName(tolerance) ++ " tolerance allows an imbalance of up to " ++ Int.toString(tolerance) ++ ".", difference}
+    {move: Cooperate, rule, explanation: "The defection balance is " ++ Int.toString(difference) ++ "; your " ++ toleranceName(tolerance) ++ " tolerance allows up to " ++ Int.toString(tolerance) ++ ".", difference}
   } else {
-    {move: Defect, rule, explanation: "The other person's cumulative defection advantage is " ++ Int.toString(difference) ++ ". This exceeds your " ++ toleranceName(tolerance) ++ " tolerance of " ++ Int.toString(tolerance) ++ ".", difference}
+    {move: Defect, rule, explanation: "The defection balance is " ++ Int.toString(difference) ++ ", above your " ++ toleranceName(tolerance) ++ " tolerance of " ++ Int.toString(tolerance) ++ ".", difference}
   }
 }
 

@@ -98,6 +98,13 @@ input::placeholder { color: var(--muted) !important; opacity: .72; }
 .cure-settings label, .decision-panel label { font-weight: 600; }
 .cure-settings select, .cure-settings input, .decision-panel select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
 .cure-settings p { margin: 0; color: var(--muted); }
+.cure-settings { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+.cure-settings > details, .cure-settings > .delete-button { grid-column: 1 / -1; }
+.tolerance-details > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; min-height: 44px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.tolerance-change { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.tolerance-details > summary:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.tolerance-controls { display: grid; gap: 10px; padding: 14px 0; }
+.tolerance-controls p { max-width: 65ch; margin: 0; color: var(--muted); font-size: 13px; }
 .new-ledger-form { display: grid; gap: 10px; padding-top: 12px; }
 .decision-panel details { margin: 12px 0; }
 .dashboard-ledger-tolerances { display: grid; grid-column: 1 / -1; grid-row: 3; gap: 4px; color: var(--muted); }

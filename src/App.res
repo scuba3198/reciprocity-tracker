@@ -948,16 +948,10 @@ let make = () => {
               : React.null}
 
             <section className="cure-settings" ariaLabel="Person and ledger settings">
-              <label htmlFor="person-tolerance">{React.string("Person CURE tolerance")}</label>
-              <select id="person-tolerance" disabled={!cloudReady || syncing} value={switch owner.cureDeltaOverride { | Some(value) => Int.toString(value) | None => "" }} onChange={event => {
-                let choice = State.toleranceFromChoice(JsxEvent.Form.target(event)["value"])
-                saveOverride(people->Array.map(item => item.id == owner.id ? {...item, cureDeltaOverride: ?choice} : item))
-              }}><option value="">{React.string("Use app default: " ++ State.toleranceLabel(appTolerance))}</option>{toleranceOptions()}</select>
-              <p>{React.string(State.toleranceLabel(inherited) ++ (owner.cureDeltaOverride == None ? " · Inherited from app default" : " · Custom for this person"))}</p>
               <label htmlFor="active-ledger">{React.string("Ledger")}</label>
               <select id="active-ledger" value={selectedLedgerId} onChange={event => switchLedger(JsxEvent.Form.target(event)["value"])}>
-                <option value="">{React.string("General · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, owner.generalCureDeltaOverride)))}</option>
-                {ledgers->Array.map(ledger => <option key={ledger.id} value={ledger.id}>{React.string(ledger.name ++ " · " ++ State.toleranceLabel(State.effectiveTolerance(appTolerance, owner.cureDeltaOverride, ledger.cureDeltaOverride)))}</option>)->React.array}
+                <option value="">{React.string("General")}</option>
+                {ledgers->Array.map(ledger => <option key={ledger.id} value={ledger.id}>{React.string(ledger.name)}</option>)->React.array}
               </select>
               {activeLedger != None ? <button className="text-button delete-button" type_="button" disabled={!cloudReady || syncing} onClick={_ => setLedgerDeleteOpen(_ => true)}>{React.string("Delete ledger")}</button> : React.null}
               {ledgerDeleteOpen && activeLedger != None ? <ConfirmDialog title={"Delete " ++ ledgerName ++ " ledger?"} message="This permanently removes this ledger's interaction history, saved drafts, and tolerance override. The person and their other ledgers will be kept." keepLabel="Keep ledger" confirmLabel="Delete ledger permanently" onKeep={() => setLedgerDeleteOpen(_ => false)} onConfirm={() => {
@@ -992,14 +986,23 @@ let make = () => {
                 <p className="decision-action">{React.string(decisionLabel(decision))}</p>
                 <p>{React.string(decision.explanation)}</p>
               </div>
-              <p className="decision-rule">{React.string(ledgerName ++ " · Balance: " ++ Int.toString(decision.difference))}</p>
-              <label htmlFor="ledger-tolerance">{React.string("CURE tolerance: " ++ State.toleranceLabel(tolerance))}</label>
+              <details key={selectedLedgerId} className="tolerance-details">
+                <summary><span>{React.string("Tolerance: " ++ State.toleranceLabel(tolerance) ++ " · " ++ (ledgerOverride != None ? "Custom for this ledger" : owner.cureDeltaOverride != None ? "Person default" : "App default"))}</span><span className="tolerance-change">{React.string("Change tolerance")}</span></summary>
+                <div className="tolerance-controls">
+              <label htmlFor="ledger-tolerance">{React.string("Tolerance for " ++ ledgerName)}</label>
               <select id="ledger-tolerance" disabled={!cloudReady || syncing} value={switch ledgerOverride { | Some(value) => Int.toString(value) | None => "" }} onChange={event => {
                 let choice = State.toleranceFromChoice(JsxEvent.Form.target(event)["value"])
                 saveOverride(people->Array.map(item => item.id != owner.id ? item : selectedLedgerId == "" ? {...item, generalCureDeltaOverride: ?choice} : {...item, ledgers: ledgers->Array.map(ledger => ledger.id == selectedLedgerId ? {...ledger, cureDeltaOverride: ?choice} : ledger)}))
               }}><option value="">{React.string(inheritanceLabel ++ State.toleranceLabel(inherited))}</option>{toleranceOptions()}</select>
-              <p>{React.string(ledgerOverride == None ? inheritanceLabel ++ State.toleranceLabel(inherited) : "Custom for this ledger")}</p>
-              <details><summary>{React.string("About CURE tolerance")}</summary><p>{React.string("Δ is the amount of outstanding defection imbalance CURE tolerates before responding with defection. Guarded Δ1: faster response to imbalance. Balanced Δ2: middle-ground default. Forgiving Δ3: more tolerance for mistakes and temporary imbalance. Changing tolerance keeps all history intact. You control this setting; it never changes automatically.")}</p></details>
+              <label htmlFor="person-tolerance">{React.string("Default for " ++ owner.name)}</label>
+              <select id="person-tolerance" disabled={!cloudReady || syncing} value={switch owner.cureDeltaOverride { | Some(value) => Int.toString(value) | None => "" }} onChange={event => {
+                let choice = State.toleranceFromChoice(JsxEvent.Form.target(event)["value"])
+                saveOverride(people->Array.map(item => item.id == owner.id ? {...item, cureDeltaOverride: ?choice} : item))
+              }}><option value="">{React.string("Use app default: " ++ State.toleranceLabel(appTolerance))}</option>{toleranceOptions()}</select>
+                  <p>{React.string("The person default applies to all their inheriting ledgers. A ledger override applies only here. Changing either keeps history intact.")}</p>
+                  <p>{React.string("Guarded Δ1 responds sooner. Balanced Δ2 is the general default. Forgiving Δ3 allows more temporary imbalance. You choose; the app never switches automatically.")}</p>
+                </div>
+              </details>
               {toleranceError != "" ? <p role="alert">{React.string(toleranceError)}</p> : React.null}
               <button type_="button" className="decision-think-ahead" onClick={_ => thinkThrough(person, decision.move)}>{React.string("Think this decision through")}</button>
             </section>
