@@ -947,6 +947,8 @@ let make = () => {
                 </section>
               : React.null}
 
+            <PersonOverview person={owner} tolerance={appTolerance} />
+
             <section className="cure-settings" ariaLabel="Person and ledger settings">
               <label htmlFor="active-ledger">{React.string("Ledger")}</label>
               <select id="active-ledger" value={selectedLedgerId} onChange={event => switchLedger(JsxEvent.Form.target(event)["value"])}>

@@ -226,6 +226,17 @@ html[data-theme="dark"] .own-move-options button.action-request.selected { backg
 .insights-page tbody th { color: var(--ink); }
 .insights-page td { color: var(--ink); font-size: 13px; }
 .insights-page tbody button { padding: 0; border: 0; background: none; color: var(--green); font-weight: 700; }
+.person-overview { margin: 28px 0; }
+.person-overview-table-wrap { overflow-x: auto; }
+.person-overview table { width: 100%; border-collapse: collapse; text-align: left; }
+.person-overview th, .person-overview td { padding: 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.person-overview thead th { color: var(--muted); font-size: 12px; }
+.person-overview tbody th, .person-overview td { color: var(--ink); font-size: 13px; }
+.person-overview-balance-help { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.person-overview-history-heading { margin: 22px 0 8px; }
+.person-overview-history-heading h3 { margin: 0; color: var(--ink); font: 500 22px Newsreader, Georgia, serif; }
+.person-overview-history li { align-items: center; }
+.person-overview-history time { margin-left: auto; }
 .mobile-bottom-nav { display: none; }
 
 .dashboard-hero h1 { max-width: 12ch; letter-spacing: -.035em; }
