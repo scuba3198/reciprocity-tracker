@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "Good Faith",
+  "short_name": "Good Faith",
+  "description": "Track patterns, respond with intention, and leave room for repair.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#f6f3ed",
+  "background_color": "#f6f3ed",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

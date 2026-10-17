@@ -15,6 +15,8 @@ npm run dev
 
 Open the local URL printed by Vite. For a production bundle, run `npm run build`. Run `npm run check` for the state-machine checks.
 
+On Android, open the website in Brave and choose **Install app** from the browser menu. The installed app opens in its own window. Installation requires HTTPS (or localhost for development); offline use is not provided.
+
 While signed out, your ledger stays in this browser. Sign up or sign in under **Cloud sync** to sync it to your private account. On first sign-in, the existing browser ledger is copied only if your account has no ledger yet; an existing cloud ledger always takes precedence. Sign-up may show a confirmation message depending on the project’s email settings.
 
 To keep a copy without an account, open **Local backup** in Settings and download a JSON file. You can restore it on another device from the same section; review the preview before replacing the current data. The file includes your people, history, drafts, CURE tolerance, and Think Ahead scenarios.
