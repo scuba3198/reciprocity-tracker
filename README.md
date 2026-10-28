@@ -22,6 +22,7 @@ While signed out, your ledger stays in this browser. Sign up or sign in under **
 To keep a copy without an account, open **Local backup** in Settings and download a JSON file. You can restore it on another device from the same section; review the preview before replacing the current data. The file includes your people, history, drafts, CURE tolerance, and Think Ahead scenarios.
 
 Cloud sync uses `public.good_faith_ledgers`, protected by per-user row-level security (RLS).
+For a fresh database, follow [Database setup](supabase/README.md); the migration includes explicit grants and RLS.
 For an existing account, choose **Forgot password?** to request a reset email, then follow its link to set a password of at least 8 characters.
 
 Use **Appearance** for Auto (follows the device theme), Light, or Dark. The choice is saved in this browser.
@@ -40,4 +41,4 @@ Use **Think Ahead** for an important one-off or sequential choice. Name two choi
 
 Use **CURE** for repeated reciprocal interactions with the same person. Think Ahead scenarios are stored separately and never add interactions, change the defection difference or tolerance, or alter historical CURE recommendations. Scenarios stay in this browser while signed out, sync to the account while signed in, and are included in new local backups. Old backups and saved ledgers without scenarios still load.
 
-Cloud sync for Think Ahead requires the additive database change in [`db/think_ahead.sql`](db/think_ahead.sql).
+Older existing tables without a `scenarios` column need the additive change in [`db/think_ahead.sql`](db/think_ahead.sql). Fresh setup already includes it.
