@@ -1,24 +1,72 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f3ed" />
-    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%icon.svg" />
-    <title>Good Faith — a reciprocity tracker</title>
-    <meta name="description" content="Track patterns, respond with intention, and leave room for repair." />
-    <script>
-      try {
-        const choice = localStorage.getItem('good-faith-theme')
-        document.documentElement.dataset.theme = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'
-      } catch {
-        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      }
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/Main.res.mjs"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111211" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Cumulative reciprocity (CURE), one count per person.">
+<link rel="manifest" href="%BASE_URL%manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="%BASE_URL%icon.svg">
+<title>Reciprocity tracker (CURE)</title>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Reciprocity tracker</h1>
+    <p>Cumulative reciprocity (CURE), one count per person</p>
+    <button class="q" id="qTop" aria-label="How this works">?</button>
+  </div>
+  <div class="acts">
+    <button class="btn sm" id="export">Export</button>
+    <button class="btn sm" id="importBtn">Import</button>
+    <input type="file" id="file" accept="application/json,.json" hidden>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail" id="railbox">
+    <h2>People</h2>
+    <div class="railtools" id="railtools">
+      <input id="search" type="search" placeholder="Search people" autocomplete="off" spellcheck="false" aria-label="Search people">
+      <button class="btn sm" id="reorderBtn" type="button">Reorder</button>
+    </div>
+    <div class="reobar" id="reobar" hidden>
+      <div>Drag <b>⋮⋮</b> or use the arrows. Changes save as you go.</div>
+      <div class="acts">
+        <button class="btn sm" id="sortAZ" type="button">Sort A–Z</button>
+        <button class="btn sm" id="sortD" type="button">Sort by d</button>
+        <button class="btn sm quiet" id="revertOrder" type="button">Revert</button>
+      </div>
+    </div>
+    <div id="rail"></div>
+    <div class="newp">
+      <h3>Add someone</h3>
+      <input id="nname" placeholder="Name" autocomplete="off">
+      <div class="gap"></div>
+      <div class="labrow">
+        <label for="ndelta">Tolerance Δ</label>
+        <button class="q" id="qTol" aria-label="What tolerance means">?</button>
+      </div>
+      <input id="ndelta" class="tolin" type="number" inputmode="numeric" min="0" max="20" step="1" value="1">
+      <div class="gap"></div>
+      <button class="btn primary sm" id="add">Add</button>
+    </div>
+  </aside>
+
+  <main class="pane">
+    <div class="imsg" id="imsg"></div>
+    <div id="stripwrap"></div>
+    <div id="detail"></div>
+  </main>
+</div>
+
+<div class="overlay" id="helpov">
+  <div class="helpbox" id="helpbox" role="dialog" aria-modal="true"></div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
 </html>

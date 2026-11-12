@@ -1,0 +1,158 @@
+/* ================= Animations ================= */
+:root {
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@keyframes a-fade { from { opacity: 0; } }
+@keyframes a-fade-out { to { opacity: 0; } }
+@keyframes a-fade-up { from { opacity: 0; transform: translateY(10px); } }
+@keyframes a-drop { from { opacity: 0; transform: translateY(-100%); } }
+@keyframes a-pop { from { opacity: 0; transform: scale(.94) translateY(10px); } }
+@keyframes a-pop-out { to { opacity: 0; transform: scale(.96) translateY(6px); } }
+@keyframes a-sheet { from { transform: translateY(100%); } }
+@keyframes a-sheet-out { to { transform: translateY(100%); } }
+@keyframes a-slide-in { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes a-flash {
+  from { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--accent) 20%, transparent); }
+  to   { box-shadow: inset 0 0 0 100vmax transparent; }
+}
+@keyframes a-expand { from { opacity: 0; transform: scaleY(.85) translateY(-6px); } }
+@keyframes a-cell { from { opacity: 0; transform: scaleY(.2); } }
+@keyframes a-land { 0% { transform: scale(1.22); } 100% { transform: none; } }
+@keyframes a-roll-in { from { transform: translateY(var(--rd, 100%)); opacity: 0; } }
+@keyframes a-roll-out { to { transform: translateY(calc(var(--rd, 100%) * -1)); opacity: 0; } }
+@keyframes a-hit {
+  from { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+}
+@keyframes a-flip {
+  0%   { transform: perspective(700px) rotateX(-75deg); opacity: .2; }
+  60%  { transform: perspective(700px) rotateX(8deg); opacity: 1; }
+  100% { transform: none; }
+}
+@keyframes a-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--neg) 15%, transparent); }
+}
+@keyframes a-sheen { 0% { transform: translateX(-100%); } 35%, 100% { transform: translateX(100%); } }
+@keyframes a-badge {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 55%, transparent); }
+  60%      { box-shadow: 0 0 0 6px transparent; }
+}
+@keyframes a-bump { 0% { transform: scale(1.45); } 100% { transform: none; } }
+@keyframes a-ping { 0% { transform: scale(2.3); } 100% { transform: none; } }
+@keyframes a-sel { 0% { transform: scale(.95); } 100% { transform: none; } }
+
+/* top bar */
+.top { transition: box-shadow .25s; }
+.top.in { animation: a-drop .5s var(--ease-out) backwards; }
+.top.scrolled { box-shadow: 0 8px 24px -14px rgba(0,0,0,.45); }
+
+/* buttons & controls */
+.btn, .seg button, .mv, .q, .linkish {
+  transition: transform .14s var(--ease-out), background .15s, border-color .15s, color .15s, box-shadow .2s, filter .15s;
+}
+input { transition: border-color .15s, box-shadow .2s; }
+input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+@media (hover: hover) {
+  .btn:hover { transform: translateY(-1px); }
+  .q:hover { transform: rotate(14deg) scale(1.1); }
+  .cnt:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -14px rgba(0,0,0,.4); }
+  .pitem:not(.reo):hover { transform: translateX(2px); }
+}
+.btn:active, .seg button:active, .mv:not(:disabled):active { transform: scale(.95); }
+.q:active { transform: scale(.85); }
+
+/* "rule" recommended button shimmer */
+.btn.rec { position: relative; overflow: hidden; isolation: isolate; }
+.btn.rec::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--accent) 25%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: a-sheen 3.4s ease-in-out 1s infinite;
+}
+
+/* people rail */
+.pitem { transition: background .12s, border-color .2s, box-shadow .2s, transform .18s var(--ease-out); }
+.pitem:active { transform: scale(.97); }
+.pitem.in { animation: a-fade-up .42s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
+.pitem.on.sel-in { animation: a-sel .45s var(--ease-spring); }
+.pdot { transition: background .3s; }
+.pdot.ping { animation: a-ping .6s var(--ease-spring); }
+.pitem.dragging { transition: none; transform: scale(1.02); }
+
+/* detail: staggered entrance when switching person */
+#detail .in { animation: a-fade-up .48s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+#detail .verdict.no.in {
+  animation: a-fade-up .48s var(--ease-out) backwards, a-breathe 3s ease-in-out 1s infinite;
+  animation-delay: calc(var(--i, 0) * 45ms), 1s;
+}
+.placeholder { animation: a-fade .5s ease-out; }
+
+/* count tiles */
+.cnt { transition: transform .2s var(--ease-out), box-shadow .2s, border-color .2s; }
+.cnt.hit { animation: a-hit .9s ease-out; }
+.cnt .v { position: relative; overflow: hidden; }
+.cnt .v .rv-new { display: inline-block; animation: a-roll-in .55s var(--ease-spring) backwards; }
+.cnt .v .rv-old { position: absolute; left: 0; top: 0; animation: a-roll-out .35s var(--ease-out) forwards; }
+
+/* verdict */
+.verdict { transform-origin: 50% 0; transition: border-color .3s; }
+.verdict.no { animation: a-breathe 3s ease-in-out 1s infinite; }
+.verdict.flip { animation: a-flip .65s var(--ease-out) backwards; }
+.verdict.no.flip { animation: a-flip .65s var(--ease-out) backwards, a-breathe 3s ease-in-out .65s infinite; }
+
+/* number line */
+.cells { position: relative; }
+.cells.wave .cell, .cells.wave .sep {
+  animation: a-cell .5s var(--ease-spring) backwards;
+  animation-delay: calc(180ms + var(--j, 0) * 16ms);
+}
+.cell { transition: outline-color .15s; }
+.cell.cur.landing { outline-color: transparent; }
+.cell.cur.landed { animation: a-land .45s var(--ease-spring); }
+.cell-puck {
+  position: absolute; top: 0; bottom: 0; border-radius: 5px; pointer-events: none; z-index: 2;
+  outline: 2px solid var(--fg); outline-offset: 1px;
+}
+
+/* history, editor, waiting strip */
+.ev.fresh { animation: a-slide-in .42s var(--ease-out) backwards, a-flash 1.5s ease-out; }
+.resolver.fresh { animation: a-fade-up .4s var(--ease-out) .08s backwards; }
+.editor.in-ed { transform-origin: 50% 0; animation: a-expand .35s var(--ease-out) backwards; }
+.strip.in { animation: a-pop .45s var(--ease-spring) backwards; }
+.srow.fresh { animation: a-fade-up .4s var(--ease-out) backwards, a-flash 1.4s ease-out; }
+.badge { animation: a-badge 2.6s ease-out infinite; }
+.badge.bump { animation: a-bump .45s var(--ease-spring), a-badge 2.6s ease-out .45s infinite; }
+.imsg.in { animation: a-fade-up .35s var(--ease-out) backwards; }
+
+/* help overlay */
+.overlay.open, .overlay.closing { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.overlay.open { animation: a-fade .22s ease-out; }
+.overlay.open .helpbox { animation: a-pop .38s var(--ease-spring) backwards; }
+.overlay.open .helpbox > * { animation: a-fade-up .4s var(--ease-out) backwards; }
+.overlay.open .helpbox > :nth-child(1) { animation-delay: .06s; }
+.overlay.open .helpbox > :nth-child(2) { animation-delay: .10s; }
+.overlay.open .helpbox > :nth-child(3) { animation-delay: .14s; }
+.overlay.open .helpbox > :nth-child(4) { animation-delay: .18s; }
+.overlay.open .helpbox > :nth-child(5) { animation-delay: .22s; }
+.overlay.open .helpbox > :nth-child(6) { animation-delay: .26s; }
+.overlay.open .helpbox > :nth-child(n+7) { animation-delay: .30s; }
+.overlay.closing { display: flex; pointer-events: none; animation: a-fade-out .22s ease-in forwards; }
+.overlay.closing .helpbox { animation: a-pop-out .22s ease-in forwards; }
+@media (max-width: 880px) {
+  .overlay.open .helpbox { animation: a-sheet .42s var(--ease-out) backwards; }
+  .overlay.closing .helpbox { animation: a-sheet-out .22s ease-in forwards; }
+}
+
+/* click particles */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
+.fx-p { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; }
+.fx-ring { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-delay: 0s !important;
+    animation-iteration-count: 1 !important; transition-duration: .001ms !important;
+  }
+}
