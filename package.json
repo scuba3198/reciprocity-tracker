@@ -1,23 +1,17 @@
 {
   "name": "reciprocity-tracker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "rescript build && vite --host 0.0.0.0",
-    "build": "rescript build && vite build",
-    "build:pages": "rescript build && vite build --base=/reciprocity-tracker/",
-    "check": "rescript build && node --test tests/*.test.mjs",
-    "test": "rescript build && node --test tests/*.test.mjs"
-  },
-  "dependencies": {
-    "@rescript/react": "^0.15.0",
-    "@supabase/supabase-js": "2.117.2",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "build:pages": "vite build --base=/reciprocity-tracker/",
+    "preview": "vite preview",
+    "test": "node --test \"tests/*.test.js\"",
+    "check": "node --test \"tests/*.test.js\""
   },
   "devDependencies": {
-    "rescript": "^12.3.1",
     "vite": "^8.2.0"
   }
 }

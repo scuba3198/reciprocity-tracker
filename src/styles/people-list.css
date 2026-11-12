@@ -1,0 +1,35 @@
+/* ---------- People list: search + reorder ---------- */
+[hidden] { display: none !important; }
+.railtools { display: flex; gap: 6px; align-items: center; margin: 0 0 10px; }
+.railtools input { flex: 1; min-width: 0; }
+.railtools .btn { flex: none; margin-left: auto; }
+.reobar { margin: 0 0 10px; padding: 10px; border: 1px dashed var(--border-2); border-radius: 10px; font-size: 12px; color: var(--muted); }
+.reobar .acts { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.rail-empty { font-size: 13px; color: var(--muted); padding: 2px 8px 0; margin: 0; }
+.pitem.reo { cursor: default; padding: 6px 6px 6px 2px; background: var(--panel); border-color: var(--border); margin-bottom: 4px; }
+.grip {
+  flex: none; width: 22px; align-self: stretch; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  letter-spacing: -2px; font-size: 13px;
+}
+.pitem.dragging { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.14); position: relative; z-index: 2; }
+.pitem.dragging .grip { cursor: grabbing; }
+.mv {
+  flex: none; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--muted); font-size: 13px; line-height: 1; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.mv:disabled { opacity: .35; cursor: default; }
+@media (hover: hover) {
+  .mv:not(:disabled):hover { color: var(--fg); border-color: var(--border-2); }
+}
+@media (max-width: 880px) {
+  .rail-empty { white-space: nowrap; }
+  .rail.reordering #rail { display: block; overflow: visible; margin: 0; padding: 0; }
+  .rail.reordering .pitem { width: 100%; max-width: none; border-radius: 10px; margin-bottom: 6px; min-height: 48px; box-shadow: none; }
+  .rail.reordering .pitem.on { border-color: var(--border); }
+  .rail.reordering .pitem.dragging { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+  .grip { width: 34px; font-size: 15px; }
+  .mv { width: 40px; height: 40px; font-size: 16px; }
+}
+

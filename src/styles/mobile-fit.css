@@ -1,0 +1,65 @@
+/* ---------- Mobile: no horizontal scrolling ---------- */
+@media (max-width: 880px) {
+  html, body { max-width: 100%; overflow-x: clip; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .rail, .pane, #detail, #stripwrap { min-width: 0; max-width: 100%; }
+
+  /* top bar */
+  .top .acts .btn { padding: 5px 10px; }
+
+  /* people: wrapping chips instead of a sideways strip */
+  #rail {
+    flex-wrap: wrap; overflow-x: hidden; overflow-y: auto;
+    margin: 0; padding: 2px; max-height: 38vh;
+    scroll-snap-type: none; overscroll-behavior: contain;
+  }
+  .rail.reordering #rail { max-height: none; overflow: visible; }
+  .pitem { max-width: 100%; min-width: 0; scroll-snap-align: none; }
+  .pnm { min-width: 0; }
+  .rail-empty { white-space: normal; overflow-wrap: anywhere; }
+
+  /* inputs never wider than the screen */
+  input { max-width: 100%; min-width: 0; }
+  input[type=date] {
+    -webkit-appearance: none; appearance: none;
+    min-height: 42px; text-align: left; display: block;
+  }
+  input[type=date]::-webkit-date-and-time-value { text-align: left; }
+
+  /* date + note stacked, full width */
+  .logger .r:first-child,
+  .editor .r:first-child { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  .logger .r:first-child input,
+  .editor .r:first-child input { width: 100%; flex: none; min-width: 0; }
+
+  /* header */
+  .head > div:first-child { flex: 1; min-width: 0; }
+  .head h2 { line-height: 1.25; }
+
+  /* count tiles */
+  .cnt { min-width: 0; }
+  .cnt .k { flex-wrap: wrap; }
+  .cnt .v { overflow-wrap: anywhere; }
+
+  /* number line */
+  .line, .cells { min-width: 0; max-width: 100%; }
+  .scale span { min-width: 0; }
+
+  /* buttons wrap their text instead of widening rows */
+  .btn { white-space: normal; }
+  .logger .grp, .srow .grp, .resolver, .editor .seg { min-width: 0; }
+  .logger .grp .btn, .editor .seg button, .resolver .btn { min-width: 0; }
+  .editor .seg { display: flex; }
+  .editor .acts { flex-wrap: wrap; }
+
+  /* waiting list */
+  .srow .who { min-width: 0; overflow-wrap: anywhere; }
+  .srow .tx { flex-basis: 100%; order: 5; white-space: normal; overflow-wrap: anywhere; }
+  .srow .grp { order: 6; }
+
+  /* history / messages / help */
+  .ev .res { min-width: 0; overflow-wrap: anywhere; }
+  .imsg > span { flex-basis: 100%; }
+  .helpbox { overflow-wrap: break-word; }
+}
+

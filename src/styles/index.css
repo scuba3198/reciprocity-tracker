@@ -1,0 +1,7 @@
+/* Order matters: later files override earlier ones. */
+@import './base.css';          /* tokens, reset, buttons, segmented control */
+@import './app.css';           /* layout and components */
+@import './responsive.css';    /* mobile layout (≤ 880px) */
+@import './people-list.css';   /* people search + reorder */
+@import './mobile-fit.css';    /* mobile: no horizontal scrolling */
+@import './motion.css';        /* animations, reduced-motion overrides */
