@@ -171,7 +171,9 @@ export function initMotion() {
   new MutationObserver(recs => {
     const was = recs[0].oldValue || '';
     const isOpen = ov.classList.contains('open');
-    if (isOpen) { clearTimeout(closeT); ov.classList.remove('closing'); return; }
+    // Only touch the class when it is actually there: classList.remove() rewrites the
+    // attribute even when nothing changes, which re-triggers this observer forever.
+    if (isOpen) { clearTimeout(closeT); if (ov.classList.contains('closing')) ov.classList.remove('closing'); return; }
     if (reduce.matches || !/\bopen\b/.test(was) || ov.classList.contains('closing')) return;
     ov.classList.add('closing');
     closeT = setTimeout(() => ov.classList.remove('closing'), 230);
