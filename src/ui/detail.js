@@ -1,7 +1,7 @@
 // Selected person's view: header, counts, verdict, number line, logger, history.
 import { state, mobile, findPerson, dstate, commit } from '../state.js';
 import { MAX_DELTA, clampDelta, stats, effect, explain } from '../core/cure.js';
-import { signed, plural, sd } from '../core/util.js';
+import { signed, plural, sd, today } from '../core/util.js';
 import { outLabel } from '../core/model.js';
 import { log, resolve, del, startEdit, deletePerson, clearHistory } from '../actions.js';
 import { $, el, effColor } from './dom.js';
@@ -89,8 +89,8 @@ function logger(p, coop) {
   const box = el('div', 'logger');
   const r1 = el('div', 'r');
   const dateIn = el('input');
-  dateIn.type = 'date'; dateIn.value = s.date; dateIn.setAttribute('aria-label', 'Date of the ask');
-  dateIn.onchange = () => { s.date = dateIn.value; };
+  dateIn.type = 'date'; dateIn.value = s.date || today(); dateIn.setAttribute('aria-label', 'Date of the ask');
+  dateIn.onchange = () => { s.date = dateIn.value === today() ? '' : dateIn.value; };
   const noteIn = el('input', 'in-note');
   noteIn.placeholder = 'What was the ask? (optional)';
   noteIn.value = s.note;

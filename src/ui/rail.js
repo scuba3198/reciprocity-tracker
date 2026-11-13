@@ -12,6 +12,8 @@ function visiblePeople() {
 }
 
 export function drawRail() {
+  // With nobody left the Done button is hidden, so reorder mode could never be left.
+  if (!state.people.length && state.reordering) { state.reordering = false; state.orderSnap = null; }
   const { people, reordering, selected } = state;
   const r = $('rail');
   r.innerHTML = '';

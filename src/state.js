@@ -1,7 +1,6 @@
 // Single shared app state plus a render hook. UI modules read and mutate `state`,
 // then call `commit()` (persist + redraw) or `render()` (redraw only).
 import { load, save } from './core/storage.js';
-import { today } from './core/util.js';
 
 const people = load();
 
@@ -27,7 +26,8 @@ export function commit() { persist(); render(); }
 
 export function findPerson(id) { return state.people.find(x => x.id === id); }
 export function dstate(id) {
-  if (!state.draft[id]) state.draft[id] = { date: today(), note: '' };
+  // date '' means "today", resolved when used, so a tab left open overnight doesn't log yesterday's date
+  if (!state.draft[id]) state.draft[id] = { date: '', note: '' };
   return state.draft[id];
 }
 export function select(id) {

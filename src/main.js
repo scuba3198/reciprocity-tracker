@@ -1,5 +1,6 @@
 import './styles/index.css';
-import { state, mobile, setRenderer } from './state.js';
+import { state, mobile, setRenderer, render, findPerson } from './state.js';
+import { load, KEY } from './core/storage.js';
 import { cancelEdit } from './actions.js';
 import { initHelp, helpOpen, closeHelp } from './ui/help.js';
 import { drawRail, initRail } from './ui/rail.js';
@@ -21,6 +22,15 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (helpOpen()) closeHelp();
   else if (state.editing) cancelEdit();
+});
+
+// Another tab saved: adopt its data, or this tab's next save would silently overwrite it.
+addEventListener('storage', e => {
+  if (e.key !== KEY && e.key !== null) return;
+  state.people = load();
+  state.editing = null;
+  if (!findPerson(state.selected)) state.selected = state.people.length ? state.people[0].id : null;
+  render();
 });
 
 if (mobile.addEventListener) mobile.addEventListener('change', draw);
