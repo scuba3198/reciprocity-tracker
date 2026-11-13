@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clampDelta, effect, stats, ruleCooperates, explain, DEFAULT_DELTA, MAX_DELTA } from '../src/core/cure.js';
 import { normEvent, normPerson, mergePeople } from '../src/core/model.js';
-import { load, save, KEY } from '../src/core/storage.js';
+import { load, save, KEY, BACKUP_KEY } from '../src/core/storage.js';
 import { signed, sd, fold } from '../src/core/util.js';
 
 const ev = (dir, outcome, extra = {}) => ({ id: Math.random().toString(36), dir, outcome, note: '', date: '2026-01-01', t: 0, ...extra });
@@ -82,4 +82,30 @@ test('formatting helpers', () => {
   assert.equal(signed(0), '0');
   assert.equal(sd('2026-11-12'), '12/11');
   assert.equal(fold('Ñandú'), 'nandu');
+});
+
+test('merge gives colliding event ids fresh ones (re-importing your own export after an edit)', () => {
+  const people = [{ id: 'a', name: 'Ana', delta: 1, events: [ev('theyAsked', 'yes', { id: 'e1' })] }];
+  // The export still had e1 as unanswered; it is not a content duplicate, so it is merged in.
+  mergePeople(people, [{ id: 'b', name: 'Ana', delta: 1, events: [ev('theyAsked', 'waiting', { id: 'e1' })] }]);
+  const ids = people[0].events.map(e => e.id);
+  assert.equal(ids.length, 2);
+  assert.equal(new Set(ids).size, 2);
+  assert.equal(people[0].events[0].id, 'e1');
+});
+
+test('normPerson de-duplicates event ids within a person', () => {
+  const p = normPerson({ name: 'Ana', events: [{ id: 'x', dir: 'iAsked', outcome: 'yes' }, { id: 'x', dir: 'iAsked', outcome: 'no' }] });
+  assert.equal(new Set(p.events.map(e => e.id)).size, 2);
+});
+
+test('unreadable storage is backed up instead of being lost on the next save', () => {
+  const mem = new Map();
+  const storage = { getItem: k => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
+  mem.set(KEY, '{"people": oops');
+  assert.deepEqual(load(storage), []);
+  assert.equal(mem.get(BACKUP_KEY), '{"people": oops');
+  mem.set(KEY, '{"not":"a list"}');
+  assert.deepEqual(load(storage), []);
+  assert.equal(mem.get(BACKUP_KEY), '{"not":"a list"}');
 });

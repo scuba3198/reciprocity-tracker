@@ -27,8 +27,17 @@ export function normPerson(x, keepId) {
     id: keepId && typeof x.id === 'string' ? x.id : 'p' + uid(),
     name: x.name.trim(),
     delta: x.delta === undefined ? DEFAULT_DELTA : clampDelta(x.delta),
-    events: x.events.map(normEvent).filter(Boolean)
+    events: uniqueIds(x.events.map(normEvent).filter(Boolean))
   };
+}
+
+/** Give any event whose id is already taken a fresh one. Edit, resolve and delete look events up by id. */
+function uniqueIds(events, taken = new Set()) {
+  events.forEach(ev => {
+    while (taken.has(ev.id)) ev.id = uid();
+    taken.add(ev.id);
+  });
+  return events;
 }
 
 /** Merge imported people into existing ones by name, skipping duplicate events. Mutates `people`. */
@@ -36,9 +45,12 @@ export function mergePeople(people, incoming) {
   incoming.forEach(imp => {
     const ex = people.find(p => p.name.toLowerCase() === imp.name.toLowerCase());
     if (!ex) { people.push(imp); return; }
+    const taken = new Set(ex.events.map(x => x.id));
     imp.events.forEach(ev => {
       const dup = ex.events.some(x => x.date === ev.date && x.dir === ev.dir && x.outcome === ev.outcome && x.note === ev.note);
-      if (!dup) ex.events.push(ev);
+      if (dup) return;
+      uniqueIds([ev], taken);
+      ex.events.push(ev);
     });
   });
   return people;
