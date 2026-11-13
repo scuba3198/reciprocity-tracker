@@ -1,5 +1,5 @@
 import './styles/index.css';
-import { state, mobile, setRenderer, render, findPerson } from './state.js';
+import { state, mobile, setRenderer, render, findPerson, onSave } from './state.js';
 import { load, KEY } from './core/storage.js';
 import { cancelEdit } from './actions.js';
 import { initHelp, helpOpen, closeHelp } from './ui/help.js';
@@ -9,9 +9,11 @@ import { drawDetail } from './ui/detail.js';
 import { initImportExport } from './ui/import-export.js';
 import { initAddPerson } from './ui/add-person.js';
 import { initMotion } from './ui/motion.js';
+import { drawSaveWarning } from './ui/status.js';
 
 function draw() { drawRail(); drawStrip(); drawDetail(); }
 setRenderer(draw);
+onSave(drawSaveWarning);
 
 initHelp();
 initRail();

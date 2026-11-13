@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clampDelta, effect, stats, ruleCooperates, explain, DEFAULT_DELTA, MAX_DELTA } from '../src/core/cure.js';
 import { normEvent, normPerson, mergePeople } from '../src/core/model.js';
-import { load, save, KEY, BACKUP_KEY } from '../src/core/storage.js';
+import { load, save, backupBeforeImport, KEY, BACKUP_KEY, IMPORT_BACKUP_KEY } from '../src/core/storage.js';
 import { signed, sd, fold } from '../src/core/util.js';
 
 const ev = (dir, outcome, extra = {}) => ({ id: Math.random().toString(36), dir, outcome, note: '', date: '2026-01-01', t: 0, ...extra });
@@ -84,19 +84,50 @@ test('formatting helpers', () => {
   assert.equal(fold('Ñandú'), 'nandu');
 });
 
-test('merge gives colliding event ids fresh ones (re-importing your own export after an edit)', () => {
-  const people = [{ id: 'a', name: 'Ana', delta: 1, events: [ev('theyAsked', 'yes', { id: 'e1' })] }];
-  // The export still had e1 as unanswered; it is not a content duplicate, so it is merged in.
-  mergePeople(people, [{ id: 'b', name: 'Ana', delta: 1, events: [ev('theyAsked', 'waiting', { id: 'e1' })] }]);
+test('merge keeps the local copy of an event the file also has (re-importing an old export after an edit)', () => {
+  const people = [{ id: 'a', name: 'Ana', delta: 1, events: [
+    ev('theyAsked', 'yes', { id: 'e1' }),
+    ev('iAsked', 'no', { id: 'e2', note: 'edited' })
+  ] }];
+  // The export had e1 unanswered and e2 with its old note. Neither is a second event.
+  mergePeople(people, [{ id: 'b', name: 'Ana', delta: 1, events: [
+    ev('theyAsked', 'waiting', { id: 'e1' }),
+    ev('iAsked', 'no', { id: 'e2', note: 'original' })
+  ] }]);
+  assert.deepEqual(people[0].events.map(e => [e.id, e.outcome, e.note]), [['e1', 'yes', ''], ['e2', 'no', 'edited']]);
+});
+
+test('merge keeps identical events that are genuinely separate', () => {
+  const people = [{ id: 'a', name: 'Ana', delta: 1, events: [] }];
+  mergePeople(people, [{ id: 'b', name: 'Ana', delta: 1, events: [ev('iAsked', 'no'), ev('iAsked', 'no')] }]);
+  assert.equal(people[0].events.length, 2);
+  // Same content but logged at a different time is also a separate event.
+  mergePeople(people, [{ id: 'c', name: 'Ana', delta: 1, events: [ev('iAsked', 'no', { t: 5 })] }]);
+  assert.equal(people[0].events.length, 3);
+});
+
+test('merge gives an imported event a fresh id when its id is taken by another merged event', () => {
+  const people = [{ id: 'a', name: 'Ana', delta: 1, events: [ev('iAsked', 'yes', { id: 'e1' })] }];
+  mergePeople(people, [{ id: 'b', name: 'Ana', delta: 1, events: [ev('iAsked', 'no', { id: 'n1' }), ev('theyAsked', 'no', { id: 'n1' })] }]);
   const ids = people[0].events.map(e => e.id);
-  assert.equal(ids.length, 2);
-  assert.equal(new Set(ids).size, 2);
-  assert.equal(people[0].events[0].id, 'e1');
+  assert.equal(ids.length, 3);
+  assert.equal(new Set(ids).size, 3);
 });
 
 test('normPerson de-duplicates event ids within a person', () => {
   const p = normPerson({ name: 'Ana', events: [{ id: 'x', dir: 'iAsked', outcome: 'yes' }, { id: 'x', dir: 'iAsked', outcome: 'no' }] });
   assert.equal(new Set(p.events.map(e => e.id)).size, 2);
+});
+
+test('save reports whether the browser stored the data; import backup is kept separately', () => {
+  const mem = new Map();
+  const ok = { getItem: k => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
+  const full = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
+  assert.equal(save([], ok), true);
+  assert.equal(save([], full), false);
+  assert.equal(backupBeforeImport([{ name: 'Ana' }], ok), true);
+  assert.equal(JSON.parse(mem.get(IMPORT_BACKUP_KEY))[0].name, 'Ana');
+  assert.equal(backupBeforeImport([], full), false);
 });
 
 test('unreadable storage is backed up instead of being lost on the next save', () => {
