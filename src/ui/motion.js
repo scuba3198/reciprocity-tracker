@@ -10,7 +10,8 @@ export function initMotion() {
   const num = s => parseInt(String(s).replace('−', '-'), 10) || 0;
 
   function keyOf(it, seen) {
-    const n = (it.querySelector('.pnm') || {}).textContent || '';
+    const pn = it.querySelector('.pnm');
+    const n = pn ? pn.dataset.real ?? pn.textContent : '';
     seen[n] = (seen[n] || 0) + 1;
     return n + '#' + seen[n];
   }
@@ -60,7 +61,56 @@ export function initMotion() {
     });
   }
 
+  // Decode-style intro: each letter flickers through random glyphs, then locks onto the real
+  // character, left to right. Every letter keeps its final width so nothing jitters, and the
+  // real name sits in data-real (keyOf reads it) until the plain text is restored at the end.
+  const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
+  const GL = { up: 'ABCDEFGHJKLMNPQRSTUVWXYZ#%&@', lo: 'abcdefghjkmnpqrstuvwxyz*+=?/' };
+  const glyph = c => {
+    const set = c === c.toLowerCase() && c !== c.toUpperCase() ? GL.lo : GL.up;
+    return set[Math.random() * set.length | 0];
+  };
+  function unjumble(node, delay = 0) {
+    if (!node || node.dataset.real !== undefined) return;
+    const text = node.textContent;
+    const chars = seg ? [...seg.segment(text)].map(s => s.segment) : [...text];
+    if (chars.filter(c => c.trim()).length < 2) return;
+    node.dataset.real = text;
+    node.textContent = '';
+    const letters = [];
+    let word = null;
+    chars.forEach(c => {
+      if (!c.trim()) { word = null; node.append(c); return; }
+      if (!word) { word = document.createElement('span'); word.className = 'jw'; node.append(word); }
+      const s = document.createElement('span'); s.className = 'jl'; s.textContent = c;
+      word.append(s); letters.push(s);
+    });
+    const t0 = performance.now() + delay;
+    const jobs = letters.map((s, i) => {
+      s.style.width = s.getBoundingClientRect().width + 'px';
+      s.classList.add('jg');
+      const c = s.textContent;
+      s.textContent = glyph(c);
+      return { s, c, at: 180 + i * 42 + Math.random() * 140, next: 0 };
+    });
+    const end = Math.max(...jobs.map(j => j.at));
+    // setTimeout rather than rAF: a background tab would otherwise freeze names mid-scramble.
+    (function tick() {
+      if (!node.isConnected) return;
+      const now = performance.now();
+      const t = now - t0;
+      jobs.forEach(j => {
+        if (j.done) return;
+        if (t >= j.at) { j.done = true; j.s.textContent = j.c; j.s.classList.replace('jg', 'jk'); return; }
+        if (now >= j.next) { j.s.textContent = glyph(j.c); j.next = now + 45 + Math.random() * 40; }
+      });
+      if (t < end + 260) setTimeout(tick, 30);
+      else { node.textContent = text; delete node.dataset.real; }
+    })();
+  }
+
   function enterDetail() {
+    unjumble(detail.querySelector('.head h2'), 60);
     let i = 0;
     [...detail.children].forEach(c => {
       if (c.classList.contains('counts')) {
@@ -115,7 +165,12 @@ export function initMotion() {
       const k = keyOf(it, seen);
       if (it.classList.contains('dragging')) return;
       const o = p.pos.get(k);
-      if (!o) { it.style.setProperty('--i', i++); it.classList.add('in'); return; }
+      if (!o) {
+        it.style.setProperty('--i', i);
+        it.classList.add('in');
+        unjumble(it.querySelector('.pnm'), Math.min(i++, 12) * 30);
+        return;
+      }
       const dx = o.x - it.offsetLeft, dy = o.y - it.offsetTop;
       if (dx || dy) {
         it.getAnimations().forEach(a => a.cancel());

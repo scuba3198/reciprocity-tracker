@@ -145,6 +145,13 @@ input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transp
   .overlay.closing .helpbox { animation: a-sheet-out .22s ease-in forwards; }
 }
 
+/* name decode (random glyphs lock onto the real letters) */
+@keyframes a-lock { from { color: var(--accent); transform: translateY(-2px); } }
+.jw { display: inline-block; white-space: nowrap; }
+.jl { display: inline-block; text-align: center; overflow: visible; }
+.jl.jg { color: var(--muted); opacity: .75; }
+.jl.jk { animation: a-lock .35s var(--ease-out); }
+
 /* click particles */
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
 .fx-p { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; }
