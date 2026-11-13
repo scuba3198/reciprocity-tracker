@@ -7,6 +7,7 @@ import { log, resolve, del, startEdit, deletePerson, clearHistory } from '../act
 import { $, el, effColor } from './dom.js';
 import { helpBtn, openHelp } from './help.js';
 import { drawEditor } from './editor.js';
+import { toast } from './status.js';
 
 function header(p) {
   const head = el('div', 'head');
@@ -156,7 +157,10 @@ function history(p, coop) {
     const x = el('button', 'x', '×');
     x.title = 'Delete this entry';
     x.setAttribute('aria-label', 'Delete this entry');
-    x.onclick = () => del(p.id, ev.id);
+    x.onclick = () => {
+      const undo = del(p.id, ev.id);
+      if (undo) toast('Entry deleted.', ['Undo', undo]);
+    };
     row.append(el('span', 'dt', sd(ev.date)), tx, res, eff, ed, x);
     hist.appendChild(row);
     if (pend) {

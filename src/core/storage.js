@@ -31,6 +31,14 @@ export function load(storage = globalThis.localStorage) {
   return [];
 }
 
+/** Data as it was before the last import, so a bad Replace can be recovered. */
+export const IMPORT_BACKUP_KEY = KEY + '_before_import';
+
+/** Returns false when the browser refused the write (storage full, blocked or unavailable). */
 export function save(people, storage = globalThis.localStorage) {
-  try { storage.setItem(KEY, JSON.stringify(people)); } catch (e) {}
+  try { storage.setItem(KEY, JSON.stringify(people)); return true; } catch (e) { return false; }
+}
+
+export function backupBeforeImport(people, storage = globalThis.localStorage) {
+  try { storage.setItem(IMPORT_BACKUP_KEY, JSON.stringify(people)); return true; } catch (e) { return false; }
 }

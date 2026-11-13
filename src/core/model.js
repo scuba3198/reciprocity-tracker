@@ -40,14 +40,20 @@ function uniqueIds(events, taken = new Set()) {
   return events;
 }
 
-/** Merge imported people into existing ones by name, skipping duplicate events. Mutates `people`. */
+/** Merge imported people into existing ones by name, skipping events they already have. Mutates `people`. */
 export function mergePeople(people, incoming) {
   incoming.forEach(imp => {
     const ex = people.find(p => p.name.toLowerCase() === imp.name.toLowerCase());
     if (!ex) { people.push(imp); return; }
-    const taken = new Set(ex.events.map(x => x.id));
+    // Compare only against events the person had before this merge, so identical events
+    // inside the file are all kept. A matching id is the same event: keep the local copy,
+    // which may have been edited or answered since the export.
+    const before = ex.events.slice();
+    const ids = new Set(before.map(x => x.id));
+    const taken = new Set(ids);
     imp.events.forEach(ev => {
-      const dup = ex.events.some(x => x.date === ev.date && x.dir === ev.dir && x.outcome === ev.outcome && x.note === ev.note);
+      if (ids.has(ev.id)) return;
+      const dup = before.some(x => x.t === ev.t && x.date === ev.date && x.dir === ev.dir && x.outcome === ev.outcome && x.note === ev.note);
       if (dup) return;
       uniqueIds([ev], taken);
       ex.events.push(ev);

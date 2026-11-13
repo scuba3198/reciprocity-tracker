@@ -13,7 +13,8 @@ export const state = {
   focusEditor: false,
   query: '',          // people search
   reordering: false,  // reorder mode on/off
-  orderSnap: null     // order when reorder mode was entered (for Revert)
+  orderSnap: null,    // order when reorder mode was entered (for Revert)
+  saveFailed: false   // the last save was refused by the browser
 };
 
 export const mobile = window.matchMedia('(max-width: 880px)');
@@ -21,7 +22,11 @@ export const mobile = window.matchMedia('(max-width: 880px)');
 let renderFn = () => {};
 export function setRenderer(fn) { renderFn = fn; }
 export function render() { renderFn(); }
-export function persist() { save(state.people); }
+// Called after every save with whether it worked. Some paths save without a full redraw,
+// so the save-failure warning is driven from here rather than from render().
+let saveFn = () => {};
+export function onSave(fn) { saveFn = fn; }
+export function persist() { state.saveFailed = !save(state.people); saveFn(state.saveFailed); }
 export function commit() { persist(); render(); }
 
 export function findPerson(id) { return state.people.find(x => x.id === id); }

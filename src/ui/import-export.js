@@ -1,34 +1,35 @@
-// JSON export, import (replace or merge), and the status message line.
+// JSON export and import (replace or merge).
 import { state, commit, findPerson } from '../state.js';
 import { normPerson, mergePeople } from '../core/model.js';
+import { backupBeforeImport } from '../core/storage.js';
 import { today, plural } from '../core/util.js';
-import { $, el } from './dom.js';
+import { $ } from './dom.js';
+import { notify } from './status.js';
 
 export const EXPORT_VERSION = 14;
 
-function msg(t, choice) {
-  const m = $('imsg');
-  m.innerHTML = '';
-  if (!t) return;
-  m.appendChild(el('span', '', t));
-  if (choice) {
-    [['Replace everything', 'replace'], ['Merge', 'merge'], ['Cancel', 'cancel']].forEach(([label, mode]) => {
-      const b = el('button', 'btn sm', label);
-      b.onclick = () => { if (mode === 'cancel') { state.incoming = null; msg(''); } else applyImport(mode); };
-      m.appendChild(b);
-    });
-  }
+function fixSelection() {
+  if (!findPerson(state.selected)) state.selected = state.people.length ? state.people[0].id : null;
 }
 
 function applyImport(mode) {
   if (!state.incoming) return;
+  // Keep the pre-import data, in storage and for the Undo button. Merge mutates in place, so copy it.
+  const before = JSON.parse(JSON.stringify(state.people));
+  backupBeforeImport(before);
   if (mode === 'replace') state.people = state.incoming;
   else mergePeople(state.people, state.incoming);
   state.incoming = null;
   state.editing = null;
-  if (!findPerson(state.selected)) state.selected = state.people.length ? state.people[0].id : null;
+  fixSelection();
   commit();
-  msg('Imported.');
+  notify(mode === 'replace' ? 'Replaced everything with the file.' : 'Merged the file in.', [['Undo', () => {
+    state.people = before;
+    state.editing = null;
+    fixSelection();
+    commit();
+    notify('Import undone.');
+  }]]);
 }
 
 function exportJson() {
@@ -63,8 +64,12 @@ export function initImportExport() {
     e.target.value = '';
     if (!f) return;
     const { error, people } = parseImport(await f.text());
-    if (error) { msg(error); return; }
+    if (error) { notify(error); return; }
     state.incoming = people;
-    msg(people.length + ' ' + plural(people.length, 'person') + ' read from file.', true);
+    notify(people.length + ' ' + plural(people.length, 'person') + ' read from file.', [
+      ['Replace everything', () => applyImport('replace')],
+      ['Merge', () => applyImport('merge')],
+      ['Cancel', () => { state.incoming = null; }]
+    ]);
   };
 }

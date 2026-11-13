@@ -17,11 +17,20 @@ export function resolve(pid, eid, outcome) {
   commit();
 }
 
+/** Delete an entry. Returns a function that puts it back where it was, or null if nothing was deleted. */
 export function del(pid, eid) {
-  const p = findPerson(pid); if (!p) return;
-  p.events = p.events.filter(x => x.id !== eid);
+  const p = findPerson(pid); if (!p) return null;
+  const at = p.events.findIndex(x => x.id === eid); if (at < 0) return null;
+  const [gone] = p.events.splice(at, 1);
   if (state.editing && state.editing.eid === eid) state.editing = null;
   commit();
+  return () => {
+    // Look the person up again: the list may have been replaced (import, another tab) since.
+    const q = findPerson(pid);
+    if (!q || q.events.some(x => x.id === gone.id)) return;
+    q.events.splice(Math.min(at, q.events.length), 0, gone);
+    commit();
+  };
 }
 
 export function startEdit(pid, ev) {
