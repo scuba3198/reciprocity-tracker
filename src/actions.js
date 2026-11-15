@@ -14,6 +14,8 @@ export function resolve(pid, eid, outcome) {
   const p = findPerson(pid); if (!p) return;
   const e = p.events.find(x => x.id === eid); if (!e) return;
   e.outcome = outcome;
+  // Keep an open editor on this entry in step, or saving it would undo the answer.
+  if (state.editing && state.editing.eid === eid) state.editing.outcome = outcome;
   commit();
 }
 

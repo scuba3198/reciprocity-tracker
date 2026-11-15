@@ -140,3 +140,23 @@ test('unreadable storage is backed up instead of being lost on the next save', (
   assert.deepEqual(load(storage), []);
   assert.equal(mem.get(BACKUP_KEY), '{"not":"a list"}');
 });
+
+test('blocked or missing localStorage does not throw: load is empty, save reports failure', () => {
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('SecurityError'); } });
+  try {
+    assert.deepEqual(load(), []);
+    assert.equal(save([]), false);
+    assert.equal(backupBeforeImport([]), false);
+  } finally {
+    if (had) Object.defineProperty(globalThis, 'localStorage', had); else delete globalThis.localStorage;
+  }
+});
+
+test('v13 data is still returned when the migration write is refused', () => {
+  const storage = {
+    getItem: k => k === 'cure_tracker_v13' ? JSON.stringify([{ id: 'p1', name: 'Ana', events: [] }]) : null,
+    setItem: () => { throw new Error('QuotaExceededError'); }
+  };
+  assert.equal(load(storage)[0].name, 'Ana');
+});

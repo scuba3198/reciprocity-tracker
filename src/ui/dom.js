@@ -8,12 +8,14 @@ export function el(tag, cls, text) {
 }
 
 /** Segmented control: opts is [[value, label], ...]. */
-export function seg(opts, cur, onPick) {
+export function seg(opts, cur, onPick, name) {
   const s = el('div', 'seg');
   s.setAttribute('role', 'group');
+  if (name) s.dataset.seg = name;
   opts.forEach(([v, label]) => {
     const b = el('button', v === cur ? 'on' : '', label);
     b.type = 'button';
+    b.dataset.v = v;
     b.setAttribute('aria-pressed', String(v === cur));
     b.onclick = () => onPick(v);
     s.appendChild(b);

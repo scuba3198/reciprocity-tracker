@@ -16,5 +16,5 @@ export function initAddPerson() {
     state.query = ''; $('search').value = '';
     commit();
   };
-  $('nname').addEventListener('keydown', e => { if (e.key === 'Enter') $('add').click(); });
+  ['nname', 'ndelta'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('add').click(); }));
 }
