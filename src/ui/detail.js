@@ -18,7 +18,8 @@ function header(p) {
   tol.type = 'number'; tol.min = 0; tol.max = MAX_DELTA; tol.step = 1; tol.value = p.delta;
   tol.inputMode = 'numeric';
   tol.id = 'tol-' + p.id; tl.htmlFor = tol.id;
-  tol.onchange = () => { p.delta = clampDelta(tol.value); commit(); };
+  // An emptied or unreadable field keeps the current tolerance instead of falling back to the default.
+  tol.onchange = () => { if (!isNaN(parseInt(tol.value, 10))) p.delta = clampDelta(tol.value); commit(); };
   const answered = p.events.filter(e => e.outcome !== 'waiting').length;
   meta.append(tl, tol, helpBtn('tolerance', 'What tolerance means'), el('span', '', '· ' + answered + ' answered ' + plural(answered, 'ask')));
   hl.append(el('h2', '', p.name), meta);
@@ -188,6 +189,13 @@ function historyFooter(p) {
 }
 
 function focusEditorIfRequested(root) {
+  if (state.focusSeg) {
+    // A segmented choice redraws the editor; put keyboard focus back on the button that was pressed.
+    const [group, v] = state.focusSeg;
+    state.focusSeg = null;
+    const b = root.querySelector('.editor [data-seg="' + group + '"] [data-v="' + v + '"]');
+    if (b) b.focus();
+  }
   if (!state.focusEditor) return;
   state.focusEditor = false;
   const ed = root.querySelector('.editor');

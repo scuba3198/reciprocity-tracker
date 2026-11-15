@@ -30,6 +30,7 @@ document.addEventListener('keydown', e => {
 addEventListener('storage', e => {
   if (e.key !== KEY && e.key !== null) return;
   state.people = load();
+  state.rev++;
   state.editing = null;
   if (!findPerson(state.selected)) state.selected = state.people.length ? state.people[0].id : null;
   render();

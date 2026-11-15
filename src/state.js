@@ -14,7 +14,9 @@ export const state = {
   query: '',          // people search
   reordering: false,  // reorder mode on/off
   orderSnap: null,    // order when reorder mode was entered (for Revert)
-  saveFailed: false   // the last save was refused by the browser
+  saveFailed: false,  // the last save was refused by the browser
+  rev: 0,             // bumped whenever the data changes; lets a late Undo notice newer changes
+  focusSeg: null      // editor segmented button to refocus after a redraw: [group, value]
 };
 
 export const mobile = window.matchMedia('(max-width: 880px)');
@@ -26,7 +28,7 @@ export function render() { renderFn(); }
 // so the save-failure warning is driven from here rather than from render().
 let saveFn = () => {};
 export function onSave(fn) { saveFn = fn; }
-export function persist() { state.saveFailed = !save(state.people); saveFn(state.saveFailed); }
+export function persist() { state.rev++; state.saveFailed = !save(state.people); saveFn(state.saveFailed); }
 export function commit() { persist(); render(); }
 
 export function findPerson(id) { return state.people.find(x => x.id === id); }

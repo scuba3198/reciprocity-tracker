@@ -13,6 +13,7 @@ export function drawEditor() {
   const di = el('input');
   di.type = 'date'; di.value = st.date; di.setAttribute('aria-label', 'Date of the ask');
   di.onchange = () => { st.date = di.value; };
+  di.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); st.date = di.value; saveEdit(); } };
   const ni = el('input', 'grow');
   ni.placeholder = 'What was the ask? (optional)';
   ni.value = st.note;
@@ -23,7 +24,7 @@ export function drawEditor() {
 
   const r2 = el('div', 'r');
   r2.append(el('span', 'lbl', 'Who asked'),
-    seg([['theyAsked', 'They asked you'], ['iAsked', 'You asked them']], st.dir, v => { st.dir = v; render(); }));
+    seg([['theyAsked', 'They asked you'], ['iAsked', 'You asked them']], st.dir, v => { st.dir = v; state.focusSeg = ['dir', v]; render(); }, 'dir'));
 
   const r3 = el('div', 'r');
   r3.append(el('span', 'lbl', 'Outcome'),
@@ -31,7 +32,7 @@ export function drawEditor() {
       ['yes', st.dir === 'theyAsked' ? 'You cooperated' : 'They cooperated'],
       ['no', st.dir === 'theyAsked' ? 'You defected' : 'They defected'],
       ['waiting', 'Not answered yet']
-    ], st.outcome, v => { st.outcome = v; render(); }));
+    ], st.outcome, v => { st.outcome = v; state.focusSeg = ['outcome', v]; render(); }, 'outcome'));
 
   const r4 = el('div', 'r acts');
   const prev = el('span', 'prev');

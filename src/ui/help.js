@@ -11,9 +11,12 @@ export function helpBtn(key, label) {
 
 export function helpOpen() { return $('helpov').classList.contains('open'); }
 
+let opener = null;
+
 export function openHelp(key) {
   const h = HELP[key];
   if (!h) return;
+  if (!helpOpen()) opener = document.activeElement;
   const box = $('helpbox');
   box.innerHTML = '';
   box.appendChild(el('h3', '', h.t));
@@ -31,6 +34,9 @@ export function openHelp(key) {
 export function closeHelp() {
   $('helpov').classList.remove('open');
   document.body.style.overflow = '';
+  // Hand keyboard focus back to whatever opened the dialog, if it is still on the page.
+  if (opener && opener.isConnected && $('helpov').contains(document.activeElement)) opener.focus();
+  opener = null;
 }
 
 export function initHelp() {

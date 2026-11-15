@@ -23,13 +23,22 @@ function applyImport(mode) {
   state.editing = null;
   fixSelection();
   commit();
-  notify(mode === 'replace' ? 'Replaced everything with the file.' : 'Merged the file in.', [['Undo', () => {
+  const rev = state.rev;
+  const done = mode === 'replace' ? 'Replaced everything with the file.' : 'Merged the file in.';
+  const undo = () => {
+    // The Undo button stays on screen, so it can be pressed long after the import.
+    // Restoring the old data would also throw away everything entered since.
+    if (state.rev !== rev && !confirm('You have made changes since this import. Undoing it will discard those too. Undo anyway?')) {
+      notify(done, [['Undo', undo]]);
+      return;
+    }
     state.people = before;
     state.editing = null;
     fixSelection();
     commit();
     notify('Import undone.');
-  }]]);
+  };
+  notify(done, [['Undo', undo]]);
 }
 
 function exportJson() {
